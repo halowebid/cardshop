@@ -24,6 +24,7 @@ export default defineConfig(
     },
     rules: {
       "no-undef": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
     },
   },
   {
