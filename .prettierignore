@@ -8,3 +8,9 @@ bun.lockb
 # Miscellaneous
 /static/
 /drizzle/
+
+# AI
+.opencode/
+openspec/
+opencode.json
+AGENTS.md
