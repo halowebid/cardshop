@@ -28,7 +28,7 @@
   let dialogOpen = $state(false)
   let editDialogOpen = $state(false)
   let deleteDialogOpen = $state(false)
-  let selectedCategory = $state<any>(null)
+  let selectedCategory = $state<Category | null>(null)
 
   let formData = $state({
     title: "",
@@ -58,7 +58,7 @@
       dialogOpen = false
       resetForm()
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to create category")
     }
   }
@@ -84,7 +84,7 @@
       selectedCategory = null
       resetForm()
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to update category")
     }
   }
@@ -107,12 +107,20 @@
       deleteDialogOpen = false
       selectedCategory = null
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete category")
     }
   }
 
-  function openEditDialog(category: any) {
+  interface Category {
+    id: number
+    title: string
+    imageUrl?: string
+    description?: string
+    itemCount?: number
+  }
+
+  function openEditDialog(category: Category) {
     selectedCategory = category
     formData = {
       title: category.title,
@@ -122,7 +130,7 @@
     editDialogOpen = true
   }
 
-  function openDeleteDialog(category: any) {
+  function openDeleteDialog(category: Category) {
     selectedCategory = category
     deleteDialogOpen = true
   }
@@ -172,7 +180,7 @@
       </TableRow>
     </TableHeader>
     <TableBody>
-      {#each data.categories as category}
+      {#each data.categories as category (category.id)}
         <TableRow>
           <TableCell class="font-medium">{category.title}</TableCell>
           <TableCell>{category.description || "-"}</TableCell>

@@ -149,7 +149,7 @@
               </TableCell>
             </TableRow>
           {:else}
-            {#each data.orders as order}
+            {#each data.orders as order (order.id)}
               <TableRow>
                 <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
@@ -245,7 +245,7 @@
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {#each selectedOrder.items as item}
+                {#each selectedOrder.items as item (item.itemId)}
                   <TableRow>
                     <TableCell class="font-mono text-sm">{item.itemId.slice(0, 8)}...</TableCell>
                     <TableCell>{item.quantity}</TableCell>

@@ -23,14 +23,22 @@
 
   let { data } = $props()
 
+  interface InventoryItem {
+    id: number
+    name: string
+    stockQty: number
+    category?: { title: string } | null
+    setName?: string | null
+  }
+
   let dialogOpen = $state(false)
-  let selectedItem = $state<any>(null)
+  let selectedItem = $state<InventoryItem | null>(null)
   let stockUpdate = $state({
     stockQty: "0",
     operation: "set" as "set" | "add" | "subtract",
   })
 
-  function openStockDialog(item: any) {
+  function openStockDialog(item: InventoryItem) {
     selectedItem = item
     stockUpdate = {
       stockQty: item.stockQty.toString(),
@@ -73,7 +81,7 @@
       dialogOpen = false
       selectedItem = null
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to update stock")
     }
   }
@@ -103,7 +111,7 @@
       </TableRow>
     </TableHeader>
     <TableBody>
-      {#each data.items as item}
+      {#each data.items as item (item.id)}
         <TableRow>
           <TableCell class="font-medium">{item.name}</TableCell>
           <TableCell>{item.category?.title || "-"}</TableCell>

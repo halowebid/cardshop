@@ -2,12 +2,18 @@
   import "../app.css"
 
   import { browser } from "$app/environment"
+  import { page } from "$app/stores"
   import favicon from "$lib/assets/favicon.svg"
+  import Footer from "$lib/components/layout/footer.svelte"
+  import Navbar from "$lib/components/layout/navbar.svelte"
   import { Toaster } from "$lib/components/ui/sonner"
   import { onMount } from "svelte"
   import { toast } from "svelte-sonner"
 
-  let { children } = $props()
+  let { children, data } = $props()
+
+  // Determine if current route is admin
+  const isAdminRoute = $derived($page.url.pathname.startsWith("/admin"))
 
   // Handle cart migration after login
   onMount(async () => {
@@ -42,6 +48,18 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children()}
+{#if isAdminRoute}
+  <!-- Admin routes have their own layout -->
+  {@render children()}
+{:else}
+  <!-- Public routes get navbar and footer -->
+  <div class="flex min-h-screen flex-col">
+    <Navbar user={data.user} cartCount={data.cartCount} />
+    <main class="flex-1">
+      {@render children()}
+    </main>
+    <Footer />
+  </div>
+{/if}
 
 <Toaster richColors />

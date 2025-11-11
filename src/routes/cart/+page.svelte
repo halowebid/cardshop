@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left"
   import MinusIcon from "@lucide/svelte/icons/minus"
   import PlusIcon from "@lucide/svelte/icons/plus"
   import ShoppingCartIcon from "@lucide/svelte/icons/shopping-cart"
@@ -32,6 +31,11 @@
   let updatingItem = $state<string | null>(null)
   let removingItem = $state<string | null>(null)
   let isAnonymous = $state(!data.isAuthenticated)
+
+  interface CartItem {
+    itemId: string
+    quantity: number
+  }
 
   // For anonymous users, load cart from localStorage on mount
   onMount(() => {
@@ -72,8 +76,8 @@
     try {
       if (isAnonymous) {
         // Update localStorage for anonymous users
-        const cart = JSON.parse(localStorage.getItem("cart") || "[]")
-        const item = cart.find((i: any) => i.itemId === cartItemId)
+        const cart: CartItem[] = JSON.parse(localStorage.getItem("cart") || "[]")
+        const item = cart.find((i: CartItem) => i.itemId === cartItemId)
         if (item) {
           item.quantity = newQuantity
           localStorage.setItem("cart", JSON.stringify(cart))
@@ -126,8 +130,8 @@
     try {
       if (isAnonymous) {
         // Remove from localStorage for anonymous users
-        const cart = JSON.parse(localStorage.getItem("cart") || "[]")
-        const filteredCart = cart.filter((i: any) => i.itemId !== cartItemId)
+        const cart: CartItem[] = JSON.parse(localStorage.getItem("cart") || "[]")
+        const filteredCart = cart.filter((i: CartItem) => i.itemId !== cartItemId)
         localStorage.setItem("cart", JSON.stringify(filteredCart))
 
         // Remove from local data
@@ -158,23 +162,7 @@
   }
 </script>
 
-<div class="flex-1 space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <ShoppingCartIcon class="h-8 w-8" />
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">Shopping Cart</h1>
-        <p class="text-sm text-muted-foreground">Review and manage your cart items</p>
-      </div>
-    </div>
-    <a href="/">
-      <Button variant="outline">
-        <ArrowLeftIcon class="mr-2 h-4 w-4" />
-        Continue Shopping
-      </Button>
-    </a>
-  </div>
-
+<div class="container mx-auto space-y-6 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   {#if data.cartItems.length === 0}
     <Card class="py-12">
       <CardContent class="space-y-4 text-center">
@@ -210,7 +198,7 @@
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {#each data.cartItems as cartItem}
+                {#each data.cartItems as cartItem (cartItem.id)}
                   {#if cartItem.item}
                     <TableRow>
                       <TableCell>

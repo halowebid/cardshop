@@ -25,6 +25,7 @@ export default defineConfig(
     rules: {
       "no-undef": "off",
       "@typescript-eslint/ban-ts-comment": "off",
+      "svelte/no-navigation-without-resolve": "off",
     },
   },
   {

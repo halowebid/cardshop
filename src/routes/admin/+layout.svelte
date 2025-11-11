@@ -1,80 +1,56 @@
 <script lang="ts">
-  import { Separator } from "$lib/components/ui/separator"
+  import { page } from "$app/stores"
+  import AdminSidebar from "$lib/components/layout/admin-sidebar.svelte"
   import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarInset,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarProvider,
-    SidebarTrigger,
-  } from "$lib/components/ui/sidebar"
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+  } from "$lib/components/ui/breadcrumb"
+  import { Separator } from "$lib/components/ui/separator"
+  import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar"
 
   let { children, data } = $props()
 
-  const navItems = [
-    { href: "/admin/categories", label: "Categories", icon: "🏷️" },
-    { href: "/admin/items", label: "Items", icon: "🃏" },
-    { href: "/admin/inventory", label: "Inventory", icon: "📦" },
-    { href: "/admin/orders", label: "Orders", icon: "📋" },
-  ]
+  // Derive current page info for breadcrumb
+  const currentPageLabel = $derived(() => {
+    const pathname = $page.url.pathname
+    if (pathname === "/admin") return "Dashboard"
 
-  let currentPath = $state("")
-  $effect(() => {
-    currentPath = window.location.pathname
+    const navMap: Record<string, string> = {
+      "/admin/categories": "Categories",
+      "/admin/items": "Items",
+      "/admin/inventory": "Inventory",
+      "/admin/orders": "Orders",
+    }
+
+    return navMap[pathname] || "Dashboard"
   })
 </script>
 
 <SidebarProvider>
-  <Sidebar>
-    <SidebarHeader>
-      <div class="flex items-center gap-2 px-4 py-2">
-        <span class="text-xl font-bold">CardShop Admin</span>
-      </div>
-    </SidebarHeader>
-    <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupLabel>Management</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {#each navItems as item}
-              <SidebarMenuItem>
-                <SidebarMenuButton isActive={currentPath === item.href}>
-                  {#snippet child({ props })}
-                    <a {...props} href={item.href}>
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </a>
-                  {/snippet}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            {/each}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    </SidebarContent>
-    <SidebarFooter>
-      <div class="px-4 py-2 text-sm text-muted-foreground">
-        Logged in as {data.user.name || data.user.email}
-      </div>
-    </SidebarFooter>
-  </Sidebar>
+  <AdminSidebar user={data.user} />
   <SidebarInset>
     <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger />
+      <SidebarTrigger class="-ml-1" />
       <Separator orientation="vertical" class="mr-2 h-4" />
-      <div class="flex flex-1 items-center justify-between">
-        <h1 class="text-lg font-semibold">Admin Dashboard</h1>
-        <a href="/" class="text-sm text-muted-foreground hover:text-foreground">View Store</a>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/admin">Admin</BreadcrumbLink>
+          </BreadcrumbItem>
+          {#if $page.url.pathname !== "/admin"}
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{currentPageLabel()}</BreadcrumbPage>
+            </BreadcrumbItem>
+          {/if}
+        </BreadcrumbList>
+      </Breadcrumb>
     </header>
-    <div class="flex flex-1 flex-col gap-4 p-4">
+    <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
       {@render children()}
     </div>
   </SidebarInset>

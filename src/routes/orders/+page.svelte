@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left"
   import EyeIcon from "@lucide/svelte/icons/eye"
   import PackageIcon from "@lucide/svelte/icons/package"
   import { Badge } from "$lib/components/ui/badge"
@@ -73,23 +72,7 @@
   }
 </script>
 
-<div class="flex-1 space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <PackageIcon class="h-8 w-8" />
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">My Orders</h1>
-        <p class="text-sm text-muted-foreground">View your order history and track orders</p>
-      </div>
-    </div>
-    <a href="/">
-      <Button variant="outline">
-        <ArrowLeftIcon class="mr-2 h-4 w-4" />
-        Back to Shop
-      </Button>
-    </a>
-  </div>
-
+<div class="container mx-auto space-y-6 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   {#if data.orders.length === 0}
     <Card class="py-12">
       <CardContent class="space-y-4 text-center">
@@ -124,7 +107,7 @@
             </TableRow>
           </TableHeader>
           <TableBody>
-            {#each data.orders as order}
+            {#each data.orders as order (order.id)}
               <TableRow>
                 <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
@@ -200,7 +183,7 @@
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {#each selectedOrder.items as item}
+                {#each selectedOrder.items as item (item.itemId)}
                   <TableRow>
                     <TableCell class="font-mono text-sm">{item.itemId.slice(0, 8)}...</TableCell>
                     <TableCell>{item.quantity}</TableCell>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left"
   import CheckCircleIcon from "@lucide/svelte/icons/check-circle"
   import CreditCardIcon from "@lucide/svelte/icons/credit-card"
   import { goto } from "$app/navigation"
@@ -72,23 +71,7 @@
   }
 </script>
 
-<div class="mx-auto max-w-5xl flex-1 space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <CreditCardIcon class="h-8 w-8" />
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">Checkout</h1>
-        <p class="text-sm text-muted-foreground">Review your order and confirm purchase</p>
-      </div>
-    </div>
-    <a href="/cart">
-      <Button variant="outline">
-        <ArrowLeftIcon class="mr-2 h-4 w-4" />
-        Back to Cart
-      </Button>
-    </a>
-  </div>
-
+<div class="container mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   <div class="grid gap-6 lg:grid-cols-3">
     <div class="space-y-6 lg:col-span-2">
       <Card>
@@ -106,7 +89,7 @@
               </TableRow>
             </TableHeader>
             <TableBody>
-              {#each data.cartItems as cartItem}
+              {#each data.cartItems as cartItem (cartItem.id)}
                 {#if cartItem.item}
                   <TableRow>
                     <TableCell>
@@ -165,7 +148,7 @@
       </CardHeader>
       <CardContent class="space-y-4">
         <div class="space-y-2">
-          {#each data.cartItems as cartItem}
+          {#each data.cartItems as cartItem (cartItem.id)}
             {#if cartItem.item}
               <div class="flex justify-between text-sm">
                 <span class="text-muted-foreground">

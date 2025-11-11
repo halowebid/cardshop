@@ -31,10 +31,28 @@
 
   let { data } = $props()
 
+  interface ItemData {
+    id: number
+    categoryId: string
+    name: string
+    setName: string | null
+    rarity: string | null
+    price: number
+    imageUrl: string | null
+    description: string | null
+    stockQty: number
+    category?: { title: string } | null
+  }
+
+  interface CategoryData {
+    id: string
+    title: string
+  }
+
   let dialogOpen = $state(false)
   let editDialogOpen = $state(false)
   let deleteDialogOpen = $state(false)
-  let selectedItem = $state<any>(null)
+  let selectedItem = $state<ItemData | null>(null)
 
   let formData = $state({
     categoryId: "",
@@ -88,7 +106,7 @@
       dialogOpen = false
       resetForm()
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to create item")
     }
   }
@@ -119,7 +137,7 @@
       selectedItem = null
       resetForm()
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to update item")
     }
   }
@@ -142,19 +160,19 @@
       deleteDialogOpen = false
       selectedItem = null
       await invalidateAll()
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete item")
     }
   }
 
-  function openEditDialog(item: any) {
+  function openEditDialog(item: ItemData) {
     selectedItem = item
     formData = {
       categoryId: item.categoryId,
       name: item.name,
       setName: item.setName || "",
       rarity: item.rarity || "",
-      price: item.price,
+      price: item.price.toString(),
       imageUrl: item.imageUrl || "",
       description: item.description || "",
       stockQty: item.stockQty.toString(),
@@ -163,7 +181,7 @@
     editDialogOpen = true
   }
 
-  function openDeleteDialog(item: any) {
+  function openDeleteDialog(item: ItemData) {
     selectedItem = item
     deleteDialogOpen = true
   }
@@ -185,11 +203,11 @@
           <Label for="category">Category</Label>
           <SelectRoot type="single" bind:value={selectedCategoryValue}>
             <SelectTrigger>
-              {data.categories.find((c: any) => c.id === selectedCategoryValue)?.title ??
+              {data.categories.find((c: CategoryData) => c.id === selectedCategoryValue)?.title ??
                 "Select category"}
             </SelectTrigger>
             <SelectContent>
-              {#each data.categories as category}
+              {#each data.categories as category (category.id)}
                 <SelectItem value={category.id}>{category.title}</SelectItem>
               {/each}
             </SelectContent>
@@ -246,7 +264,7 @@
       </TableRow>
     </TableHeader>
     <TableBody>
-      {#each data.items as item}
+      {#each data.items as item (item.id)}
         <TableRow>
           <TableCell class="font-medium">{item.name}</TableCell>
           <TableCell>{item.category?.title || "-"}</TableCell>
@@ -275,11 +293,11 @@
         <Label for="edit-category">Category</Label>
         <SelectRoot type="single" bind:value={editSelectedCategoryValue}>
           <SelectTrigger>
-            {data.categories.find((c: any) => c.id === editSelectedCategoryValue)?.title ??
+            {data.categories.find((c: CategoryData) => c.id === editSelectedCategoryValue)?.title ??
               "Select category"}
           </SelectTrigger>
           <SelectContent>
-            {#each data.categories as category}
+            {#each data.categories as category (category.id)}
               <SelectItem value={category.id}>{category.title}</SelectItem>
             {/each}
           </SelectContent>

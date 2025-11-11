@@ -137,7 +137,7 @@
                 </TableCell>
               </TableRow>
             {:else}
-              {#each data.recentOrders as order}
+              {#each data.recentOrders as order (order.id)}
                 <TableRow>
                   <TableCell class="font-medium">{order.id.slice(0, 8)}...</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>

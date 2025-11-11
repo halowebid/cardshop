@@ -2,7 +2,6 @@
   import FilterIcon from "@lucide/svelte/icons/filter"
   import SearchIcon from "@lucide/svelte/icons/search"
   import ShoppingCartIcon from "@lucide/svelte/icons/shopping-cart"
-  import StoreIcon from "@lucide/svelte/icons/store"
   import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
   import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card"
@@ -86,7 +85,9 @@
       // If unauthorized (401), user is anonymous - use localStorage
       if (response.status === 401) {
         const cart = JSON.parse(localStorage.getItem("cart") || "[]")
-        const existingItem = cart.find((item: any) => item.itemId === itemId)
+        const existingItem = cart.find(
+          (item: { itemId: string; quantity: number }) => item.itemId === itemId,
+        )
 
         if (existingItem) {
           existingItem.quantity += 1
@@ -115,25 +116,7 @@
   }
 </script>
 
-<div class="flex-1 space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <StoreIcon class="h-8 w-8" />
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">CardShop</h1>
-        <p class="text-sm text-muted-foreground">Browse and shop trading cards</p>
-      </div>
-    </div>
-    <div>
-      <a href="/cart">
-        <Button variant="outline">
-          <ShoppingCartIcon class="mr-2 h-4 w-4" />
-          Cart
-        </Button>
-      </a>
-    </div>
-  </div>
-
+<div class="container mx-auto space-y-6 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-1 items-center gap-2">
       <div class="relative max-w-sm flex-1">
@@ -155,7 +138,7 @@
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Categories</SelectItem>
-          {#each data.categories as category}
+          {#each data.categories as category (category.id)}
             <SelectItem value={category.id}>{category.title}</SelectItem>
           {/each}
         </SelectContent>
@@ -165,7 +148,7 @@
 
   {#if isLoading}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {#each Array(8) as _}
+      {#each Array.from({ length: 8 }, (_, i) => i) as i (i)}
         <Card class="overflow-hidden">
           <CardHeader class="p-0">
             <Skeleton class="aspect-[3/4] w-full" />
@@ -197,7 +180,7 @@
     </Card>
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {#each filteredItems as item}
+      {#each filteredItems as item (item.id)}
         <Card class="overflow-hidden transition-shadow hover:shadow-md">
           <CardHeader class="p-0">
             {#if item.imageUrl}
