@@ -1,0 +1,271 @@
+<script lang="ts">
+  import EyeIcon from "@lucide/svelte/icons/eye"
+  import { Badge } from "$lib/components/ui/badge"
+  import { Button } from "$lib/components/ui/button"
+  import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+  } from "$lib/components/ui/card"
+  import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+  } from "$lib/components/ui/dialog"
+  import {
+    SelectContent,
+    SelectItem,
+    Select as SelectRoot,
+    SelectTrigger,
+  } from "$lib/components/ui/select"
+  import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+  } from "$lib/components/ui/table"
+  import { toast } from "svelte-sonner"
+
+  let { data } = $props()
+
+  let selectedOrder = $state<(typeof data.orders)[number] | null>(null)
+  let dialogOpen = $state(false)
+  let updatingStatus = $state(false)
+
+  function formatCurrency(amount: number | string) {
+    const num = typeof amount === "string" ? parseFloat(amount) : amount
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(num)
+  }
+
+  function formatDate(date: Date) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(date))
+  }
+
+  function getStatusVariant(status: string) {
+    switch (status) {
+      case "pending":
+        return "secondary"
+      case "completed":
+        return "default"
+      case "cancelled":
+        return "destructive"
+      default:
+        return "outline"
+    }
+  }
+
+  function viewOrderDetails(order: (typeof data.orders)[number]) {
+    selectedOrder = order
+    dialogOpen = true
+  }
+
+  async function updateOrderStatus(orderId: string, newStatus: string) {
+    updatingStatus = true
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update order status")
+      }
+
+      toast.success(`Order status updated to ${newStatus}`)
+
+      // Update local data
+      const orderIndex = data.orders.findIndex((o) => o.id === orderId)
+      if (orderIndex !== -1) {
+        data.orders[orderIndex].status = newStatus
+      }
+
+      // Update selected order if it's the one being viewed
+      if (selectedOrder?.id === orderId) {
+        selectedOrder.status = newStatus
+      }
+    } catch (error) {
+      toast.error("Failed to update order status")
+      console.error(error)
+    } finally {
+      updatingStatus = false
+    }
+  }
+
+  function getOrderTotalItems(order: (typeof data.orders)[number]) {
+    return order.items.reduce((sum, item) => sum + item.quantity, 0)
+  }
+</script>
+
+<div class="flex-1 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-3xl font-bold tracking-tight">Orders</h2>
+      <p class="text-sm text-muted-foreground">Manage customer orders and update status</p>
+    </div>
+  </div>
+
+  <Card>
+    <CardHeader>
+      <CardTitle>All Orders</CardTitle>
+      <CardDescription>
+        {data.orders.length} total order{data.orders.length !== 1 ? "s" : ""}
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order ID</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Items</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead class="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {#if data.orders.length === 0}
+            <TableRow>
+              <TableCell colspan={6} class="text-center text-muted-foreground">
+                No orders yet
+              </TableCell>
+            </TableRow>
+          {:else}
+            {#each data.orders as order}
+              <TableRow>
+                <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
+                <TableCell>{formatDate(order.createdAt)}</TableCell>
+                <TableCell>
+                  {getOrderTotalItems(order)} item{getOrderTotalItems(order) !== 1 ? "s" : ""}
+                </TableCell>
+                <TableCell class="font-medium">{formatCurrency(order.totalPrice)}</TableCell>
+                <TableCell>
+                  <Badge variant={getStatusVariant(order.status)}>
+                    {order.status}
+                  </Badge>
+                </TableCell>
+                <TableCell class="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onclick={() => viewOrderDetails(order)}
+                    class="h-8 w-8 p-0"
+                  >
+                    <EyeIcon class="h-4 w-4" />
+                    <span class="sr-only">View details</span>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            {/each}
+          {/if}
+        </TableBody>
+      </Table>
+    </CardContent>
+  </Card>
+</div>
+
+<Dialog bind:open={dialogOpen}>
+  <DialogContent class="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle>Order Details</DialogTitle>
+      <DialogDescription>View order items and update order status</DialogDescription>
+    </DialogHeader>
+
+    {#if selectedOrder}
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Order ID</p>
+            <p class="font-mono text-sm">{selectedOrder.id}</p>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Date</p>
+            <p class="text-sm">{formatDate(selectedOrder.createdAt)}</p>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Total Amount</p>
+            <p class="text-lg font-bold">{formatCurrency(selectedOrder.totalPrice)}</p>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Status</p>
+            <div class="flex items-center gap-2">
+              <SelectRoot
+                type="single"
+                bind:value={selectedOrder.status}
+                onValueChange={(value: string | undefined) => {
+                  if (value && selectedOrder && value !== selectedOrder.status) {
+                    updateOrderStatus(selectedOrder.id, value)
+                  }
+                }}
+                disabled={updatingStatus}
+              >
+                <SelectTrigger class="w-[140px]">
+                  <Badge variant={getStatusVariant(selectedOrder.status)}>
+                    {selectedOrder.status}
+                  </Badge>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </SelectRoot>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="mb-2 text-sm font-medium">Order Items</h4>
+          <div class="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item ID</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead class="text-right">Price</TableHead>
+                  <TableHead class="text-right">Subtotal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {#each selectedOrder.items as item}
+                  <TableRow>
+                    <TableCell class="font-mono text-sm">{item.itemId.slice(0, 8)}...</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell class="text-right">{formatCurrency(item.priceAtTime)}</TableCell>
+                    <TableCell class="text-right font-medium">
+                      {formatCurrency(parseFloat(item.priceAtTime) * item.quantity)}
+                    </TableCell>
+                  </TableRow>
+                {/each}
+                <TableRow>
+                  <TableCell colspan={3} class="font-medium">Total</TableCell>
+                  <TableCell class="text-right font-bold">
+                    {formatCurrency(selectedOrder.totalPrice)}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    {/if}
+  </DialogContent>
+</Dialog>

@@ -2,6 +2,19 @@
   import { signIn } from "$lib/auth-client"
   import { Button } from "$lib/components/ui/button"
   import * as Card from "$lib/components/ui/card"
+
+  async function handleSignIn() {
+    // Save cart before redirect
+    const cart = localStorage.getItem("cart")
+    if (cart) {
+      sessionStorage.setItem("pendingCartMigration", cart)
+    }
+
+    await signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    })
+  }
 </script>
 
 <div class="flex min-h-screen items-center justify-center p-4">
@@ -11,16 +24,7 @@
       <Card.Description>Sign in to your CardShop account to continue</Card.Description>
     </Card.Header>
     <Card.Content>
-      <Button
-        variant="outline"
-        class="w-full"
-        onclick={async () => {
-          await signIn.social({
-            provider: "google",
-            callbackURL: "/",
-          })
-        }}
-      >
+      <Button variant="outline" class="w-full" onclick={handleSignIn}>
         <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
