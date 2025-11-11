@@ -70,7 +70,10 @@
     return cat?.title || "Unknown"
   }
 
-  async function addToCart(itemId: string) {
+  async function addToCart(itemId: string, event: MouseEvent) {
+    event.preventDefault()
+    event.stopPropagation()
+
     addingToCart = itemId
     try {
       // Try API first (for authenticated users)
@@ -181,55 +184,63 @@
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {#each filteredItems as item (item.id)}
-        <Card class="overflow-hidden transition-shadow hover:shadow-md">
-          <CardHeader class="p-0">
-            {#if item.imageUrl}
-              <img src={item.imageUrl} alt={item.name} class="aspect-[3/4] w-full object-cover" />
-            {:else}
-              <div class="flex aspect-[3/4] w-full items-center justify-center bg-muted">
-                <p class="text-sm text-muted-foreground">No image</p>
-              </div>
-            {/if}
-          </CardHeader>
-          <CardContent class="space-y-2 p-4">
-            <div class="space-y-1">
-              <CardTitle class="line-clamp-1 text-base">{item.name}</CardTitle>
-              {#if item.setName}
-                <p class="line-clamp-1 text-xs text-muted-foreground">{item.setName}</p>
-              {/if}
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" class="text-xs">
-                {getCategoryName(item.categoryId)}
-              </Badge>
-              {#if item.rarity}
-                <Badge variant={getRarityVariant(item.rarity)} class="text-xs">
-                  {item.rarity}
-                </Badge>
-              {/if}
-            </div>
-            <div class="flex items-baseline justify-between">
-              <p class="text-2xl font-bold">{formatCurrency(item.price)}</p>
-              <p class="text-xs text-muted-foreground">{item.stockQty} in stock</p>
-            </div>
-          </CardContent>
-          <CardFooter class="p-4 pt-0">
-            <Button
-              class="w-full"
-              onclick={() => addToCart(item.id)}
-              disabled={addingToCart === item.id || item.stockQty === 0}
-            >
-              <ShoppingCartIcon class="mr-2 h-4 w-4" />
-              {#if item.stockQty === 0}
-                Out of Stock
-              {:else if addingToCart === item.id}
-                Adding...
+        <a href="/items/{item.id}" class="block transition-transform hover:scale-105">
+          <Card class="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
+            <CardHeader class="p-0">
+              {#if item.imageUrl}
+                <img src={item.imageUrl} alt={item.name} class="aspect-[3/4] w-full object-cover" />
               {:else}
-                Add to Cart
+                <div class="flex aspect-[3/4] w-full items-center justify-center bg-muted">
+                  <p class="text-sm text-muted-foreground">No image</p>
+                </div>
               {/if}
-            </Button>
-          </CardFooter>
-        </Card>
+            </CardHeader>
+            <CardContent class="flex-1 space-y-2 p-4">
+              <div class="space-y-1">
+                <CardTitle class="line-clamp-1 text-base">{item.name}</CardTitle>
+                {#if item.setName}
+                  <p class="line-clamp-1 text-xs text-muted-foreground">{item.setName}</p>
+                {/if}
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <a
+                  href="/categories/{item.categoryId}"
+                  class="transition-opacity hover:opacity-70"
+                  onclick={(e) => e.stopPropagation()}
+                >
+                  <Badge variant="outline" class="text-xs">
+                    {getCategoryName(item.categoryId)}
+                  </Badge>
+                </a>
+                {#if item.rarity}
+                  <Badge variant={getRarityVariant(item.rarity)} class="text-xs">
+                    {item.rarity}
+                  </Badge>
+                {/if}
+              </div>
+              <div class="flex items-baseline justify-between">
+                <p class="text-2xl font-bold">{formatCurrency(item.price)}</p>
+                <p class="text-xs text-muted-foreground">{item.stockQty} in stock</p>
+              </div>
+            </CardContent>
+            <CardFooter class="p-4 pt-0">
+              <Button
+                class="w-full"
+                onclick={(e) => addToCart(item.id, e)}
+                disabled={addingToCart === item.id || item.stockQty === 0}
+              >
+                <ShoppingCartIcon class="mr-2 h-4 w-4" />
+                {#if item.stockQty === 0}
+                  Out of Stock
+                {:else if addingToCart === item.id}
+                  Adding...
+                {:else}
+                  Add to Cart
+                {/if}
+              </Button>
+            </CardFooter>
+          </Card>
+        </a>
       {/each}
     </div>
   {/if}
