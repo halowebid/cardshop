@@ -176,7 +176,7 @@
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item ID</TableHead>
+                  <TableHead>Item</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead class="text-right">Price</TableHead>
                   <TableHead class="text-right">Subtotal</TableHead>
@@ -185,7 +185,14 @@
               <TableBody>
                 {#each selectedOrder.items as item (item.itemId)}
                   <TableRow>
-                    <TableCell class="font-mono text-sm">{item.itemId.slice(0, 8)}...</TableCell>
+                    <TableCell>
+                      <div class="flex flex-col">
+                        <span class="font-medium">{item.itemName || "Unknown Item"}</span>
+                        <span class="font-mono text-xs text-muted-foreground">
+                          {item.itemId.slice(0, 8)}...
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell class="text-right">{formatCurrency(item.priceAtTime)}</TableCell>
                     <TableCell class="text-right font-medium">

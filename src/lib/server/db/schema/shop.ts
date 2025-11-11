@@ -83,6 +83,10 @@ export const order = pgTable(
     totalPrice: numeric("total_price", { precision: 10, scale: 2 }).notNull(),
     status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
   (table) => ({
     userIdx: index("order_user_idx").on(table.userId),

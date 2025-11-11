@@ -134,6 +134,7 @@
         <TableHeader>
           <TableRow>
             <TableHead>Order ID</TableHead>
+            <TableHead>Customer</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Items</TableHead>
             <TableHead>Total</TableHead>
@@ -144,7 +145,7 @@
         <TableBody>
           {#if data.orders.length === 0}
             <TableRow>
-              <TableCell colspan={6} class="text-center text-muted-foreground">
+              <TableCell colspan={7} class="text-center text-muted-foreground">
                 No orders yet
               </TableCell>
             </TableRow>
@@ -152,6 +153,12 @@
             {#each data.orders as order (order.id)}
               <TableRow>
                 <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
+                <TableCell>
+                  <div class="flex flex-col">
+                    <span class="font-medium">{order.userName || "Unknown"}</span>
+                    <span class="text-xs text-muted-foreground">{order.userEmail || "N/A"}</span>
+                  </div>
+                </TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                 <TableCell>
                   {getOrderTotalItems(order)} item{getOrderTotalItems(order) !== 1 ? "s" : ""}
@@ -197,6 +204,11 @@
             <p class="font-mono text-sm">{selectedOrder.id}</p>
           </div>
           <div>
+            <p class="text-sm font-medium text-muted-foreground">Customer</p>
+            <p class="text-sm font-medium">{selectedOrder.userName || "Unknown"}</p>
+            <p class="text-xs text-muted-foreground">{selectedOrder.userEmail || "N/A"}</p>
+          </div>
+          <div>
             <p class="text-sm font-medium text-muted-foreground">Date</p>
             <p class="text-sm">{formatDate(selectedOrder.createdAt)}</p>
           </div>
@@ -209,9 +221,9 @@
             <div class="flex items-center gap-2">
               <SelectRoot
                 type="single"
-                bind:value={selectedOrder.status}
+                value={selectedOrder.status}
                 onValueChange={(value: string | undefined) => {
-                  if (value && selectedOrder && value !== selectedOrder.status) {
+                  if (value && selectedOrder) {
                     updateOrderStatus(selectedOrder.id, value)
                   }
                 }}
@@ -238,7 +250,7 @@
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item ID</TableHead>
+                  <TableHead>Item</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead class="text-right">Price</TableHead>
                   <TableHead class="text-right">Subtotal</TableHead>
@@ -247,7 +259,14 @@
               <TableBody>
                 {#each selectedOrder.items as item (item.itemId)}
                   <TableRow>
-                    <TableCell class="font-mono text-sm">{item.itemId.slice(0, 8)}...</TableCell>
+                    <TableCell>
+                      <div class="flex flex-col">
+                        <span class="font-medium">{item.itemName || "Unknown Item"}</span>
+                        <span class="font-mono text-xs text-muted-foreground">
+                          {item.itemId.slice(0, 8)}...
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell class="text-right">{formatCurrency(item.priceAtTime)}</TableCell>
                     <TableCell class="text-right font-medium">
