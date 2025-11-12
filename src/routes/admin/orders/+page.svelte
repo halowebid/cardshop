@@ -30,13 +30,16 @@
     TableHeader,
     TableRow,
   } from "$lib/components/ui/table"
-  import { toast } from "svelte-sonner"
+  import { useOrders, useUpdateOrderStatus, type Order } from "$lib/queries/orders"
 
-  let { data } = $props()
+  // Queries - fetch on client only with 60s refetch interval for new orders
+  const ordersQuery = useOrders()
 
-  let selectedOrder = $state<(typeof data.orders)[number] | null>(null)
+  // Mutations
+  const updateStatusMutation = useUpdateOrderStatus()
+
+  let selectedOrder = $state<Order | null>(null)
   let dialogOpen = $state(false)
-  let updatingStatus = $state(false)
 
   function formatCurrency(amount: number | string) {
     const num = typeof amount === "string" ? parseFloat(amount) : amount
@@ -69,47 +72,26 @@
     }
   }
 
-  function viewOrderDetails(order: (typeof data.orders)[number]) {
+  function viewOrderDetails(order: Order) {
     selectedOrder = order
     dialogOpen = true
   }
 
-  async function updateOrderStatus(orderId: string, newStatus: string) {
-    updatingStatus = true
-    try {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+  function updateOrderStatus(orderId: string, newStatus: string) {
+    updateStatusMutation.mutate(
+      { id: orderId, status: newStatus },
+      {
+        onSuccess: (updatedOrder) => {
+          // Update selected order if it's the one being viewed
+          if (selectedOrder?.id === orderId) {
+            selectedOrder = updatedOrder
+          }
         },
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update order status")
-      }
-
-      toast.success(`Order status updated to ${newStatus}`)
-
-      // Update local data
-      const orderIndex = data.orders.findIndex((o) => o.id === orderId)
-      if (orderIndex !== -1) {
-        data.orders[orderIndex].status = newStatus
-      }
-
-      // Update selected order if it's the one being viewed
-      if (selectedOrder?.id === orderId) {
-        selectedOrder.status = newStatus
-      }
-    } catch (error) {
-      toast.error("Failed to update order status")
-      console.error(error)
-    } finally {
-      updatingStatus = false
-    }
+      },
+    )
   }
 
-  function getOrderTotalItems(order: (typeof data.orders)[number]) {
+  function getOrderTotalItems(order: Order) {
     return order.items.reduce((sum, item) => sum + item.quantity, 0)
   }
 </script>
@@ -122,71 +104,85 @@
     </div>
   </div>
 
-  <Card>
-    <CardHeader>
-      <CardTitle>All Orders</CardTitle>
-      <CardDescription>
-        {data.orders.length} total order{data.orders.length !== 1 ? "s" : ""}
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Items</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead class="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {#if data.orders.length === 0}
+  {#if ordersQuery.isLoading}
+    <Card>
+      <CardContent class="flex items-center justify-center p-8">
+        <p class="text-muted-foreground">Loading orders...</p>
+      </CardContent>
+    </Card>
+  {:else if ordersQuery.isError}
+    <Card>
+      <CardContent class="flex items-center justify-center p-8">
+        <p class="text-destructive">Error loading orders: {ordersQuery.error.message}</p>
+      </CardContent>
+    </Card>
+  {:else if ordersQuery.data}
+    <Card>
+      <CardHeader>
+        <CardTitle>All Orders</CardTitle>
+        <CardDescription>
+          {ordersQuery.data.length} total order{ordersQuery.data.length !== 1 ? "s" : ""}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colspan={7} class="text-center text-muted-foreground">
-                No orders yet
-              </TableCell>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead class="text-right">Actions</TableHead>
             </TableRow>
-          {:else}
-            {#each data.orders as order (order.id)}
+          </TableHeader>
+          <TableBody>
+            {#if ordersQuery.data.length === 0}
               <TableRow>
-                <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
-                <TableCell>
-                  <div class="flex flex-col">
-                    <span class="font-medium">{order.userName || "Unknown"}</span>
-                    <span class="text-xs text-muted-foreground">{order.userEmail || "N/A"}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{formatDate(order.createdAt)}</TableCell>
-                <TableCell>
-                  {getOrderTotalItems(order)} item{getOrderTotalItems(order) !== 1 ? "s" : ""}
-                </TableCell>
-                <TableCell class="font-medium">{formatCurrency(order.totalPrice)}</TableCell>
-                <TableCell>
-                  <Badge variant={getStatusVariant(order.status)}>
-                    {order.status}
-                  </Badge>
-                </TableCell>
-                <TableCell class="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onclick={() => viewOrderDetails(order)}
-                    class="h-8 w-8 p-0"
-                  >
-                    <EyeIcon class="h-4 w-4" />
-                    <span class="sr-only">View details</span>
-                  </Button>
+                <TableCell colspan={7} class="text-center text-muted-foreground">
+                  No orders yet
                 </TableCell>
               </TableRow>
-            {/each}
-          {/if}
-        </TableBody>
-      </Table>
-    </CardContent>
-  </Card>
+            {:else}
+              {#each ordersQuery.data as order (order.id)}
+                <TableRow>
+                  <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
+                  <TableCell>
+                    <div class="flex flex-col">
+                      <span class="font-medium">{order.userName || "Unknown"}</span>
+                      <span class="text-xs text-muted-foreground">{order.userEmail || "N/A"}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatDate(order.createdAt)}</TableCell>
+                  <TableCell>
+                    {getOrderTotalItems(order)} item{getOrderTotalItems(order) !== 1 ? "s" : ""}
+                  </TableCell>
+                  <TableCell class="font-medium">{formatCurrency(order.totalPrice)}</TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusVariant(order.status)}>
+                      {order.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onclick={() => viewOrderDetails(order)}
+                      class="h-8 w-8 p-0"
+                    >
+                      <EyeIcon class="h-4 w-4" />
+                      <span class="sr-only">View details</span>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              {/each}
+            {/if}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  {/if}
 </div>
 
 <Dialog bind:open={dialogOpen}>
@@ -227,7 +223,7 @@
                     updateOrderStatus(selectedOrder.id, value)
                   }
                 }}
-                disabled={updatingStatus}
+                disabled={updateStatusMutation.isPending}
               >
                 <SelectTrigger class="w-[140px]">
                   <Badge variant={getStatusVariant(selectedOrder.status)}>

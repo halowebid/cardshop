@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation"
   import { Button } from "$lib/components/ui/button"
   import {
     Dialog,
@@ -19,26 +18,20 @@
     TableHeader,
     TableRow,
   } from "$lib/components/ui/table"
+  import { useItems, useUpdateItem, type Item } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
-  let { data } = $props()
-
-  interface InventoryItem {
-    id: number
-    name: string
-    stockQty: number
-    category?: { title: string } | null
-    setName?: string | null
-  }
+  const itemsQuery = useItems()
+  const updateItemMutation = useUpdateItem()
 
   let dialogOpen = $state(false)
-  let selectedItem = $state<InventoryItem | null>(null)
+  let selectedItem = $state<Item | null>(null)
   let stockUpdate = $state({
     stockQty: "0",
     operation: "set" as "set" | "add" | "subtract",
   })
 
-  function openStockDialog(item: InventoryItem) {
+  function openStockDialog(item: Item) {
     selectedItem = item
     stockUpdate = {
       stockQty: item.stockQty.toString(),
@@ -47,43 +40,33 @@
     dialogOpen = true
   }
 
-  async function handleStockUpdate() {
+  function handleStockUpdate() {
     if (!selectedItem) return
 
-    try {
-      const newStock =
-        stockUpdate.operation === "set"
-          ? parseInt(stockUpdate.stockQty)
-          : stockUpdate.operation === "add"
-            ? selectedItem.stockQty + parseInt(stockUpdate.stockQty)
-            : selectedItem.stockQty - parseInt(stockUpdate.stockQty)
+    const newStock =
+      stockUpdate.operation === "set"
+        ? parseInt(stockUpdate.stockQty)
+        : stockUpdate.operation === "add"
+          ? selectedItem.stockQty + parseInt(stockUpdate.stockQty)
+          : selectedItem.stockQty - parseInt(stockUpdate.stockQty)
 
-      if (newStock < 0) {
-        toast.error("Stock quantity cannot be negative")
-        return
-      }
-
-      const response = await fetch(`/api/items/${selectedItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stockQty: newStock,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to update stock")
-        return
-      }
-
-      toast.success("Stock updated successfully")
-      dialogOpen = false
-      selectedItem = null
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to update stock")
+    if (newStock < 0) {
+      toast.error("Stock quantity cannot be negative")
+      return
     }
+
+    updateItemMutation.mutate(
+      {
+        id: selectedItem.id,
+        data: { stockQty: newStock },
+      },
+      {
+        onSuccess: () => {
+          dialogOpen = false
+          selectedItem = null
+        },
+      },
+    )
   }
 
   function getStockStatus(qty: number) {
@@ -98,44 +81,65 @@
   <p class="mt-1 text-muted-foreground">Manage stock quantities for all items</p>
 </div>
 
-<div class="mt-4 rounded-md border">
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Item Name</TableHead>
-        <TableHead>Category</TableHead>
-        <TableHead>Set</TableHead>
-        <TableHead>Current Stock</TableHead>
-        <TableHead>Status</TableHead>
-        <TableHead class="text-right">Actions</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {#each data.items as item (item.id)}
+{#if itemsQuery.isLoading}
+  <div class="py-8 text-center text-muted-foreground">Loading inventory...</div>
+{:else if itemsQuery.isError}
+  <div class="py-8 text-center text-destructive">
+    Error loading inventory: {itemsQuery.error?.message}
+  </div>
+{:else if itemsQuery.data}
+  <div class="mt-4 rounded-md border">
+    <Table>
+      <TableHeader>
         <TableRow>
-          <TableCell class="font-medium">{item.name}</TableCell>
-          <TableCell>{item.category?.title || "-"}</TableCell>
-          <TableCell>{item.setName || "-"}</TableCell>
-          <TableCell class={getStockStatus(item.stockQty)}>{item.stockQty}</TableCell>
-          <TableCell>
-            {#if item.stockQty === 0}
-              <span class="font-medium text-destructive">Out of Stock</span>
-            {:else if item.stockQty < 10}
-              <span class="font-medium text-yellow-600">Low Stock</span>
-            {:else}
-              <span class="font-medium text-green-600">In Stock</span>
-            {/if}
-          </TableCell>
-          <TableCell class="text-right">
-            <Button variant="outline" size="sm" onclick={() => openStockDialog(item)}>
-              Update Stock
-            </Button>
-          </TableCell>
+          <TableHead>Item Name</TableHead>
+          <TableHead>Category</TableHead>
+          <TableHead>Set</TableHead>
+          <TableHead>Current Stock</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead class="text-right">Actions</TableHead>
         </TableRow>
-      {/each}
-    </TableBody>
-  </Table>
-</div>
+      </TableHeader>
+      <TableBody>
+        {#if itemsQuery.data.length === 0}
+          <TableRow>
+            <TableCell colspan={6} class="py-8 text-center text-muted-foreground">
+              No items found
+            </TableCell>
+          </TableRow>
+        {:else}
+          {#each itemsQuery.data as item (item.id)}
+            <TableRow>
+              <TableCell class="font-medium">{item.name}</TableCell>
+              <TableCell>{item.category?.title || "-"}</TableCell>
+              <TableCell>{item.setName || "-"}</TableCell>
+              <TableCell class={getStockStatus(item.stockQty)}>{item.stockQty}</TableCell>
+              <TableCell>
+                {#if item.stockQty === 0}
+                  <span class="font-medium text-destructive">Out of Stock</span>
+                {:else if item.stockQty < 10}
+                  <span class="font-medium text-yellow-600">Low Stock</span>
+                {:else}
+                  <span class="font-medium text-green-600">In Stock</span>
+                {/if}
+              </TableCell>
+              <TableCell class="text-right">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={updateItemMutation.isPending}
+                  onclick={() => openStockDialog(item)}
+                >
+                  Update Stock
+                </Button>
+              </TableCell>
+            </TableRow>
+          {/each}
+        {/if}
+      </TableBody>
+    </Table>
+  </div>
+{/if}
 
 <Dialog bind:open={dialogOpen}>
   <DialogContent>
@@ -188,8 +192,16 @@
       {/if}
     </div>
     <DialogFooter>
-      <Button variant="outline" onclick={() => (dialogOpen = false)}>Cancel</Button>
-      <Button onclick={handleStockUpdate}>Update</Button>
+      <Button
+        variant="outline"
+        disabled={updateItemMutation.isPending}
+        onclick={() => (dialogOpen = false)}
+      >
+        Cancel
+      </Button>
+      <Button disabled={updateItemMutation.isPending} onclick={handleStockUpdate}>
+        {updateItemMutation.isPending ? "Updating..." : "Update"}
+      </Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>

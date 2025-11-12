@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation"
+  import { browser } from "$app/environment"
   import { Button } from "$lib/components/ui/button"
   import {
     Dialog,
@@ -27,17 +27,26 @@
     TableRow,
   } from "$lib/components/ui/table"
   import { Textarea } from "$lib/components/ui/textarea"
+  import { useCategories } from "$lib/queries/categories"
+  import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
-  let { data } = $props()
+  // Queries - fetch on client only
+  const itemsQuery = useItems()
+  const categoriesQuery = useCategories()
+
+  // Mutations
+  const createMutation = useCreateItem()
+  const updateMutation = useUpdateItem()
+  const deleteMutation = useDeleteItem()
 
   interface ItemData {
-    id: number
+    id: string
     categoryId: string
     name: string
     setName: string | null
     rarity: string | null
-    price: number
+    price: string
     imageUrl: string | null
     description: string | null
     stockQty: number
@@ -83,86 +92,68 @@
     editSelectedCategoryValue = undefined
   }
 
-  async function handleCreate() {
-    try {
-      const response = await fetch("/api/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          categoryId: selectedCategoryValue,
-          price: parseFloat(formData.price),
-          stockQty: parseInt(formData.stockQty),
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to create item")
-        return
-      }
-
-      toast.success("Item created successfully")
-      dialogOpen = false
-      resetForm()
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to create item")
+  function handleCreate() {
+    if (!selectedCategoryValue) {
+      toast.error("Please select a category")
+      return
     }
+
+    createMutation.mutate(
+      {
+        categoryId: selectedCategoryValue,
+        name: formData.name,
+        setName: formData.setName || null,
+        rarity: formData.rarity || null,
+        price: parseFloat(formData.price),
+        imageUrl: formData.imageUrl || null,
+        description: formData.description || null,
+        stockQty: parseInt(formData.stockQty),
+      },
+      {
+        onSuccess: () => {
+          dialogOpen = false
+          resetForm()
+        },
+      },
+    )
   }
 
-  async function handleEdit() {
-    if (!selectedItem) return
+  function handleEdit() {
+    if (!selectedItem || !editSelectedCategoryValue) return
 
-    try {
-      const response = await fetch(`/api/items/${selectedItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
+    updateMutation.mutate(
+      {
+        id: selectedItem.id,
+        data: {
           categoryId: editSelectedCategoryValue,
+          name: formData.name,
+          setName: formData.setName || null,
+          rarity: formData.rarity || null,
           price: parseFloat(formData.price),
+          imageUrl: formData.imageUrl || null,
+          description: formData.description || null,
           stockQty: parseInt(formData.stockQty),
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to update item")
-        return
-      }
-
-      toast.success("Item updated successfully")
-      editDialogOpen = false
-      selectedItem = null
-      resetForm()
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to update item")
-    }
+        },
+      },
+      {
+        onSuccess: () => {
+          editDialogOpen = false
+          selectedItem = null
+          resetForm()
+        },
+      },
+    )
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!selectedItem) return
 
-    try {
-      const response = await fetch(`/api/items/${selectedItem.id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to delete item")
-        return
-      }
-
-      toast.success("Item deleted successfully")
-      deleteDialogOpen = false
-      selectedItem = null
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to delete item")
-    }
+    deleteMutation.mutate(selectedItem.id, {
+      onSuccess: () => {
+        deleteDialogOpen = false
+        selectedItem = null
+      },
+    })
   }
 
   function openEditDialog(item: ItemData) {
@@ -172,7 +163,7 @@
       name: item.name,
       setName: item.setName || "",
       rarity: item.rarity || "",
-      price: item.price.toString(),
+      price: item.price,
       imageUrl: item.imageUrl || "",
       description: item.description || "",
       stockQty: item.stockQty.toString(),
@@ -203,11 +194,11 @@
           <Label for="category">Category</Label>
           <SelectRoot type="single" bind:value={selectedCategoryValue}>
             <SelectTrigger>
-              {data.categories.find((c: CategoryData) => c.id === selectedCategoryValue)?.title ??
-                "Select category"}
+              {categoriesQuery.data?.find((c: CategoryData) => c.id === selectedCategoryValue)
+                ?.title ?? "Select category"}
             </SelectTrigger>
             <SelectContent>
-              {#each data.categories as category (category.id)}
+              {#each categoriesQuery.data ?? [] as category (category.id)}
                 <SelectItem value={category.id}>{category.title}</SelectItem>
               {/each}
             </SelectContent>
@@ -244,42 +235,56 @@
       </div>
       <DialogFooter>
         <Button variant="outline" onclick={() => (dialogOpen = false)}>Cancel</Button>
-        <Button onclick={handleCreate}>Create</Button>
+        <Button onclick={handleCreate} disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Creating..." : "Create"}
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
 </div>
 
 <div class="mt-4 rounded-md border">
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Name</TableHead>
-        <TableHead>Category</TableHead>
-        <TableHead>Set</TableHead>
-        <TableHead>Rarity</TableHead>
-        <TableHead>Price</TableHead>
-        <TableHead>Stock</TableHead>
-        <TableHead class="text-right">Actions</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {#each data.items as item (item.id)}
+  {#if itemsQuery.isLoading || categoriesQuery.isLoading}
+    <div class="flex items-center justify-center p-8">
+      <p class="text-muted-foreground">Loading items...</p>
+    </div>
+  {:else if itemsQuery.isError}
+    <div class="flex items-center justify-center p-8">
+      <p class="text-destructive">Error loading items: {itemsQuery.error.message}</p>
+    </div>
+  {:else if itemsQuery.data}
+    <Table>
+      <TableHeader>
         <TableRow>
-          <TableCell class="font-medium">{item.name}</TableCell>
-          <TableCell>{item.category?.title || "-"}</TableCell>
-          <TableCell>{item.setName || "-"}</TableCell>
-          <TableCell>{item.rarity || "-"}</TableCell>
-          <TableCell>${item.price}</TableCell>
-          <TableCell>{item.stockQty}</TableCell>
-          <TableCell class="text-right">
-            <Button variant="ghost" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
-            <Button variant="ghost" size="sm" onclick={() => openDeleteDialog(item)}>Delete</Button>
-          </TableCell>
+          <TableHead>Name</TableHead>
+          <TableHead>Category</TableHead>
+          <TableHead>Set</TableHead>
+          <TableHead>Rarity</TableHead>
+          <TableHead>Price</TableHead>
+          <TableHead>Stock</TableHead>
+          <TableHead class="text-right">Actions</TableHead>
         </TableRow>
-      {/each}
-    </TableBody>
-  </Table>
+      </TableHeader>
+      <TableBody>
+        {#each itemsQuery.data as item (item.id)}
+          <TableRow>
+            <TableCell class="font-medium">{item.name}</TableCell>
+            <TableCell>{item.category?.title || "-"}</TableCell>
+            <TableCell>{item.setName || "-"}</TableCell>
+            <TableCell>{item.rarity || "-"}</TableCell>
+            <TableCell>${item.price}</TableCell>
+            <TableCell>{item.stockQty}</TableCell>
+            <TableCell class="text-right">
+              <Button variant="ghost" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
+              <Button variant="ghost" size="sm" onclick={() => openDeleteDialog(item)}>
+                Delete
+              </Button>
+            </TableCell>
+          </TableRow>
+        {/each}
+      </TableBody>
+    </Table>
+  {/if}
 </div>
 
 <Dialog bind:open={editDialogOpen}>
@@ -293,11 +298,11 @@
         <Label for="edit-category">Category</Label>
         <SelectRoot type="single" bind:value={editSelectedCategoryValue}>
           <SelectTrigger>
-            {data.categories.find((c: CategoryData) => c.id === editSelectedCategoryValue)?.title ??
-              "Select category"}
+            {categoriesQuery.data?.find((c: CategoryData) => c.id === editSelectedCategoryValue)
+              ?.title ?? "Select category"}
           </SelectTrigger>
           <SelectContent>
-            {#each data.categories as category (category.id)}
+            {#each categoriesQuery.data ?? [] as category (category.id)}
               <SelectItem value={category.id}>{category.title}</SelectItem>
             {/each}
           </SelectContent>
@@ -334,7 +339,9 @@
     </div>
     <DialogFooter>
       <Button variant="outline" onclick={() => (editDialogOpen = false)}>Cancel</Button>
-      <Button onclick={handleEdit}>Update</Button>
+      <Button onclick={handleEdit} disabled={updateMutation.isPending}>
+        {updateMutation.isPending ? "Updating..." : "Update"}
+      </Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>
@@ -349,7 +356,9 @@
     </DialogHeader>
     <DialogFooter>
       <Button variant="outline" onclick={() => (deleteDialogOpen = false)}>Cancel</Button>
-      <Button variant="destructive" onclick={handleDelete}>Delete</Button>
+      <Button variant="destructive" onclick={handleDelete} disabled={deleteMutation.isPending}>
+        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+      </Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>

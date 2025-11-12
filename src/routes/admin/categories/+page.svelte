@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation"
   import { Button } from "$lib/components/ui/button"
   import {
     Dialog,
@@ -21,9 +20,19 @@
     TableRow,
   } from "$lib/components/ui/table"
   import { Textarea } from "$lib/components/ui/textarea"
+  import {
+    useCategories,
+    useCreateCategory,
+    useDeleteCategory,
+    useUpdateCategory,
+    type Category,
+  } from "$lib/queries/categories"
   import { toast } from "svelte-sonner"
 
-  let { data } = $props()
+  const categoriesQuery = useCategories()
+  const createMutation = useCreateCategory()
+  const updateMutation = useUpdateCategory()
+  const deleteMutation = useDeleteCategory()
 
   let dialogOpen = $state(false)
   let editDialogOpen = $state(false)
@@ -42,24 +51,12 @@
 
   async function handleCreate() {
     try {
-      const response = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to create category")
-        return
-      }
-
+      await createMutation.mutateAsync(formData)
       toast.success("Category created successfully")
       dialogOpen = false
       resetForm()
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to create category")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create category")
     }
   }
 
@@ -67,25 +64,16 @@
     if (!selectedCategory) return
 
     try {
-      const response = await fetch(`/api/categories/${selectedCategory.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+      await updateMutation.mutateAsync({
+        id: selectedCategory.id,
+        data: formData,
       })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to update category")
-        return
-      }
-
       toast.success("Category updated successfully")
       editDialogOpen = false
       selectedCategory = null
       resetForm()
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to update category")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update category")
     }
   }
 
@@ -93,31 +81,13 @@
     if (!selectedCategory) return
 
     try {
-      const response = await fetch(`/api/categories/${selectedCategory.id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast.error(error.error || "Failed to delete category")
-        return
-      }
-
+      await deleteMutation.mutateAsync(selectedCategory.id)
       toast.success("Category deleted successfully")
       deleteDialogOpen = false
       selectedCategory = null
-      await invalidateAll()
-    } catch {
-      toast.error("Failed to delete category")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete category")
     }
-  }
-
-  interface Category {
-    id: number
-    title: string
-    imageUrl?: string
-    description?: string
-    itemCount?: number
   }
 
   function openEditDialog(category: Category) {
@@ -163,7 +133,9 @@
       </div>
       <DialogFooter>
         <Button variant="outline" onclick={() => (dialogOpen = false)}>Cancel</Button>
-        <Button onclick={handleCreate}>Create</Button>
+        <Button onclick={handleCreate} disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Creating..." : "Create"}
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -180,19 +152,47 @@
       </TableRow>
     </TableHeader>
     <TableBody>
-      {#each data.categories as category (category.id)}
+      {#if categoriesQuery.isLoading}
         <TableRow>
-          <TableCell class="font-medium">{category.title}</TableCell>
-          <TableCell>{category.description || "-"}</TableCell>
-          <TableCell>{category.itemCount || 0}</TableCell>
-          <TableCell class="text-right">
-            <Button variant="ghost" size="sm" onclick={() => openEditDialog(category)}>Edit</Button>
-            <Button variant="ghost" size="sm" onclick={() => openDeleteDialog(category)}>
-              Delete
-            </Button>
+          <TableCell colspan={4} class="text-center">Loading categories...</TableCell>
+        </TableRow>
+      {:else if categoriesQuery.error}
+        <TableRow>
+          <TableCell colspan={4} class="text-center text-red-500">
+            Error: {categoriesQuery.error.message}
           </TableCell>
         </TableRow>
-      {/each}
+      {:else if categoriesQuery.data && categoriesQuery.data.length > 0}
+        {#each categoriesQuery.data as category (category.id)}
+          <TableRow>
+            <TableCell class="font-medium">{category.title}</TableCell>
+            <TableCell>{category.description || "-"}</TableCell>
+            <TableCell>{category.itemCount || 0}</TableCell>
+            <TableCell class="text-right">
+              <Button
+                variant="ghost"
+                size="sm"
+                onclick={() => openEditDialog(category)}
+                disabled={updateMutation.isPending}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onclick={() => openDeleteDialog(category)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </TableCell>
+          </TableRow>
+        {/each}
+      {:else}
+        <TableRow>
+          <TableCell colspan={4} class="text-center">No categories found</TableCell>
+        </TableRow>
+      {/if}
     </TableBody>
   </Table>
 </div>
@@ -219,7 +219,9 @@
     </div>
     <DialogFooter>
       <Button variant="outline" onclick={() => (editDialogOpen = false)}>Cancel</Button>
-      <Button onclick={handleEdit}>Update</Button>
+      <Button onclick={handleEdit} disabled={updateMutation.isPending}>
+        {updateMutation.isPending ? "Updating..." : "Update"}
+      </Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>
@@ -234,7 +236,9 @@
     </DialogHeader>
     <DialogFooter>
       <Button variant="outline" onclick={() => (deleteDialogOpen = false)}>Cancel</Button>
-      <Button variant="destructive" onclick={handleDelete}>Delete</Button>
+      <Button variant="destructive" onclick={handleDelete} disabled={deleteMutation.isPending}>
+        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+      </Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>

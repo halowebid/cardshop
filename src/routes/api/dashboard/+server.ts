@@ -1,10 +1,10 @@
-import { error } from "@sveltejs/kit"
+import { json } from "@sveltejs/kit"
 import { db } from "$lib/server/db"
 import { category, item, order } from "$lib/server/db/schema"
 
-import type { PageServerLoad } from "./$types"
+import type { RequestHandler } from "./$types"
 
-export const load: PageServerLoad = async () => {
+export const GET: RequestHandler = async () => {
   try {
     const [categories, items, orders] = await Promise.all([
       db.select().from(category),
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async () => {
     // Recent orders (last 5)
     const recentOrders = orders.slice(0, 5)
 
-    return {
+    return json({
       stats: {
         totalCategories,
         totalItems,
@@ -39,9 +39,9 @@ export const load: PageServerLoad = async () => {
         pendingOrders,
       },
       recentOrders,
-    }
+    })
   } catch (err) {
     console.error("Failed to load dashboard data:", err)
-    throw error(500, "Failed to load dashboard data. Please try again later.")
+    return json({ error: "Failed to load dashboard data" }, { status: 500 })
   }
 }
