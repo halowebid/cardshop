@@ -1,43 +1,37 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { category, item } from "$lib/server/db/schema"
-import { eq } from "drizzle-orm"
+import { category, item, itemCategory } from "$lib/server/db/schema"
+import { eq, inArray } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
 export const GET: RequestHandler = async ({ params }) => {
   try {
-    const [foundItem] = await db
-      .select({
-        id: item.id,
-        categoryId: item.categoryId,
-        name: item.name,
-        setName: item.setName,
-        rarity: item.rarity,
-        price: item.price,
-        imageUrl: item.imageUrl,
-        description: item.description,
-        stockQty: item.stockQty,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        category: {
-          id: category.id,
-          title: category.title,
-          imageUrl: category.imageUrl,
-          description: category.description,
-        },
-      })
-      .from(item)
-      .leftJoin(category, eq(item.categoryId, category.id))
-      .where(eq(item.id, params.id))
-      .limit(1)
+    const [foundItem] = await db.select().from(item).where(eq(item.id, params.id)).limit(1)
 
     if (!foundItem) {
       return json({ error: "Item not found" }, { status: 404 })
     }
 
-    return json(foundItem)
+    const categoriesData = await db
+      .select({
+        id: category.id,
+        title: category.title,
+        imageUrl: category.imageUrl,
+        description: category.description,
+      })
+      .from(itemCategory)
+      .innerJoin(category, eq(itemCategory.categoryId, category.id))
+      .where(eq(itemCategory.itemId, foundItem.id))
+
+    const result = {
+      ...foundItem,
+      categoryIds: categoriesData.map((c) => c.id),
+      categories: categoriesData,
+    }
+
+    return json(result)
   } catch (error) {
     console.error("Error fetching item:", error)
     return json({ error: "Failed to fetch item" }, { status: 500 })
@@ -55,22 +49,33 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     }
 
     const body = await request.json()
-    const { categoryId, name, setName, rarity, price, imageUrl, description, stockQty } = body
+    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty } = body
 
-    if (categoryId) {
-      const categoryExists = await db
+    if (categoryIds !== undefined) {
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        return json({ error: "categoryIds must be a non-empty array" }, { status: 400 })
+      }
+
+      const categoriesExist = await db
         .select()
         .from(category)
-        .where(eq(category.id, categoryId))
-        .limit(1)
+        .where(inArray(category.id, categoryIds))
 
-      if (categoryExists.length === 0) {
-        return json({ error: "Category not found" }, { status: 404 })
+      if (categoriesExist.length !== categoryIds.length) {
+        return json({ error: "One or more categories not found" }, { status: 404 })
       }
+
+      await db.delete(itemCategory).where(eq(itemCategory.itemId, params.id))
+
+      await db.insert(itemCategory).values(
+        categoryIds.map((catId: string) => ({
+          itemId: params.id,
+          categoryId: catId,
+        })),
+      )
     }
 
     const updateData: Record<string, unknown> = {}
-    if (categoryId !== undefined) updateData.categoryId = categoryId
     if (name !== undefined) updateData.name = name
     if (setName !== undefined) updateData.setName = setName || null
     if (rarity !== undefined) updateData.rarity = rarity || null
@@ -79,21 +84,40 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     if (description !== undefined) updateData.description = description || null
     if (stockQty !== undefined) updateData.stockQty = stockQty
 
-    if (Object.keys(updateData).length === 0) {
-      return json({ error: "No fields to update" }, { status: 400 })
+    if (Object.keys(updateData).length > 0) {
+      const [updatedItem] = await db
+        .update(item)
+        .set(updateData)
+        .where(eq(item.id, params.id))
+        .returning()
+
+      if (!updatedItem) {
+        return json({ error: "Item not found" }, { status: 404 })
+      }
     }
 
-    const [updatedItem] = await db
-      .update(item)
-      .set(updateData)
-      .where(eq(item.id, params.id))
-      .returning()
+    const [foundItem] = await db.select().from(item).where(eq(item.id, params.id)).limit(1)
 
-    if (!updatedItem) {
+    if (!foundItem) {
       return json({ error: "Item not found" }, { status: 404 })
     }
 
-    return json(updatedItem)
+    const categoriesData = await db
+      .select({
+        id: category.id,
+        title: category.title,
+        imageUrl: category.imageUrl,
+        description: category.description,
+      })
+      .from(itemCategory)
+      .innerJoin(category, eq(itemCategory.categoryId, category.id))
+      .where(eq(itemCategory.itemId, foundItem.id))
+
+    return json({
+      ...foundItem,
+      categoryIds: categoriesData.map((c) => c.id),
+      categories: categoriesData,
+    })
   } catch (error) {
     console.error("Error updating item:", error)
     return json({ error: "Failed to update item" }, { status: 500 })

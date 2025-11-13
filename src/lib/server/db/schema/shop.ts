@@ -28,9 +28,6 @@ export const item = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    categoryId: text("category_id")
-      .notNull()
-      .references(() => category.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     setName: text("set_name"),
     rarity: text("rarity"),
@@ -45,9 +42,29 @@ export const item = pgTable(
       .notNull(),
   },
   (table) => ({
-    categoryIdx: index("item_category_idx").on(table.categoryId),
     setNameIdx: index("item_set_name_idx").on(table.setName),
     rarityIdx: index("item_rarity_idx").on(table.rarity),
+  }),
+)
+
+export const itemCategory = pgTable(
+  "item_category",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => item.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => category.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    itemCategoryUnique: uniqueIndex("item_category_unique_idx").on(table.itemId, table.categoryId),
+    itemIdx: index("item_category_item_idx").on(table.itemId),
+    categoryIdx: index("item_category_category_idx").on(table.categoryId),
   }),
 )
 

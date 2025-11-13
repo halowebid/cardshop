@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment"
   import { Button } from "$lib/components/ui/button"
+  import { Checkbox } from "$lib/components/ui/checkbox"
   import {
     Dialog,
     DialogContent,
@@ -13,12 +14,6 @@
   import { Input } from "$lib/components/ui/input"
   import { Label } from "$lib/components/ui/label"
   import {
-    Content as SelectContent,
-    Item as SelectItem,
-    Root as SelectRoot,
-    Trigger as SelectTrigger,
-  } from "$lib/components/ui/select"
-  import {
     Table,
     TableBody,
     TableCell,
@@ -27,7 +22,7 @@
     TableRow,
   } from "$lib/components/ui/table"
   import { Textarea } from "$lib/components/ui/textarea"
-  import { useCategories } from "$lib/queries/categories"
+  import { useCategories, useCreateCategory } from "$lib/queries/categories"
   import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
@@ -39,10 +34,11 @@
   const createMutation = useCreateItem()
   const updateMutation = useUpdateItem()
   const deleteMutation = useDeleteItem()
+  const createCategoryMutation = useCreateCategory()
 
   interface ItemData {
     id: string
-    categoryId: string
+    categoryIds: string[]
     name: string
     setName: string | null
     rarity: string | null
@@ -50,7 +46,7 @@
     imageUrl: string | null
     description: string | null
     stockQty: number
-    category?: { title: string } | null
+    categories?: Array<{ id: string; title: string }> | null
   }
 
   interface CategoryData {
@@ -64,7 +60,7 @@
   let selectedItem = $state<ItemData | null>(null)
 
   let formData = $state({
-    categoryId: "",
+    categoryIds: [] as string[],
     name: "",
     setName: "",
     rarity: "",
@@ -74,12 +70,12 @@
     stockQty: "0",
   })
 
-  let selectedCategoryValue = $state<string | undefined>(undefined)
-  let editSelectedCategoryValue = $state<string | undefined>(undefined)
+  let categorySearchTerm = $state("")
+  let showCreateCategory = $state(false)
 
   function resetForm() {
     formData = {
-      categoryId: "",
+      categoryIds: [],
       name: "",
       setName: "",
       rarity: "",
@@ -88,19 +84,61 @@
       description: "",
       stockQty: "0",
     }
-    selectedCategoryValue = undefined
-    editSelectedCategoryValue = undefined
+    categorySearchTerm = ""
+    showCreateCategory = false
+  }
+
+  function toggleCategory(categoryId: string) {
+    if (formData.categoryIds.includes(categoryId)) {
+      formData.categoryIds = formData.categoryIds.filter((id) => id !== categoryId)
+    } else {
+      formData.categoryIds = [...formData.categoryIds, categoryId]
+    }
+  }
+
+  const filteredCategories = $derived(
+    (categoriesQuery.data ?? []).filter((c: CategoryData) =>
+      c.title.toLowerCase().includes(categorySearchTerm.toLowerCase()),
+    ),
+  )
+
+  const exactMatch = $derived(
+    (categoriesQuery.data ?? []).find(
+      (c: CategoryData) => c.title.toLowerCase() === categorySearchTerm.toLowerCase(),
+    ),
+  )
+
+  function handleCreateCategory() {
+    if (!categorySearchTerm.trim()) {
+      toast.error("Please enter a category name")
+      return
+    }
+
+    createCategoryMutation.mutate(
+      { title: categorySearchTerm.trim() },
+      {
+        onSuccess: (newCategory) => {
+          toast.success(`Category "${newCategory.title}" created`)
+          formData.categoryIds = [...formData.categoryIds, newCategory.id]
+          categorySearchTerm = ""
+          showCreateCategory = false
+        },
+        onError: (error) => {
+          toast.error(error.message)
+        },
+      },
+    )
   }
 
   function handleCreate() {
-    if (!selectedCategoryValue) {
-      toast.error("Please select a category")
+    if (formData.categoryIds.length === 0) {
+      toast.error("Please select at least one category")
       return
     }
 
     createMutation.mutate(
       {
-        categoryId: selectedCategoryValue,
+        categoryIds: formData.categoryIds,
         name: formData.name,
         setName: formData.setName || null,
         rarity: formData.rarity || null,
@@ -119,13 +157,18 @@
   }
 
   function handleEdit() {
-    if (!selectedItem || !editSelectedCategoryValue) return
+    if (!selectedItem) return
+
+    if (formData.categoryIds.length === 0) {
+      toast.error("Please select at least one category")
+      return
+    }
 
     updateMutation.mutate(
       {
         id: selectedItem.id,
         data: {
-          categoryId: editSelectedCategoryValue,
+          categoryIds: formData.categoryIds,
           name: formData.name,
           setName: formData.setName || null,
           rarity: formData.rarity || null,
@@ -159,7 +202,7 @@
   function openEditDialog(item: ItemData) {
     selectedItem = item
     formData = {
-      categoryId: item.categoryId,
+      categoryIds: item.categoryIds,
       name: item.name,
       setName: item.setName || "",
       rarity: item.rarity || "",
@@ -168,7 +211,8 @@
       description: item.description || "",
       stockQty: item.stockQty.toString(),
     }
-    editSelectedCategoryValue = item.categoryId
+    categorySearchTerm = ""
+    showCreateCategory = false
     editDialogOpen = true
   }
 
@@ -191,18 +235,77 @@
       </DialogHeader>
       <div class="grid gap-4 py-4">
         <div class="grid gap-2">
-          <Label for="category">Category</Label>
-          <SelectRoot type="single" bind:value={selectedCategoryValue}>
-            <SelectTrigger>
-              {categoriesQuery.data?.find((c: CategoryData) => c.id === selectedCategoryValue)
-                ?.title ?? "Select category"}
-            </SelectTrigger>
-            <SelectContent>
-              {#each categoriesQuery.data ?? [] as category (category.id)}
-                <SelectItem value={category.id}>{category.title}</SelectItem>
-              {/each}
-            </SelectContent>
-          </SelectRoot>
+          <Label for="category">Categories</Label>
+          <div class="rounded-md border p-3">
+            <Input
+              placeholder="Search or create category..."
+              bind:value={categorySearchTerm}
+              class="mb-3"
+            />
+            <div class="max-h-48 space-y-2 overflow-y-auto">
+              {#if filteredCategories.length > 0}
+                {#each filteredCategories as category (category.id)}
+                  <div class="flex items-center space-x-2">
+                    <Checkbox
+                      id={`category-${category.id}`}
+                      checked={formData.categoryIds.includes(category.id)}
+                      onCheckedChange={() => toggleCategory(category.id)}
+                    />
+                    <Label for={`category-${category.id}`} class="flex-1 cursor-pointer">
+                      {category.title}
+                    </Label>
+                  </div>
+                {/each}
+              {/if}
+              {#if categorySearchTerm && !exactMatch}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="w-full"
+                  onclick={handleCreateCategory}
+                  disabled={createCategoryMutation.isPending}
+                >
+                  {createCategoryMutation.isPending
+                    ? "Creating..."
+                    : `Create "${categorySearchTerm}"`}
+                </Button>
+              {/if}
+              {#if filteredCategories.length === 0 && !categorySearchTerm}
+                <p class="text-sm text-muted-foreground">No categories available</p>
+              {/if}
+              {#if filteredCategories.length === 0 && categorySearchTerm && exactMatch}
+                <p class="text-sm text-muted-foreground">No matching categories</p>
+              {/if}
+            </div>
+            {#if formData.categoryIds.length > 0}
+              <div class="mt-3 border-t pt-3">
+                <p class="text-sm font-medium">
+                  Selected ({formData.categoryIds.length}):
+                </p>
+                <div class="mt-1 flex flex-wrap gap-1">
+                  {#each formData.categoryIds as categoryId (categoryId)}
+                    {@const category = categoriesQuery.data?.find(
+                      (c: CategoryData) => c.id === categoryId,
+                    )}
+                    {#if category}
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs"
+                      >
+                        {category.title}
+                        <button
+                          type="button"
+                          onclick={() => toggleCategory(categoryId)}
+                          class="hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    {/if}
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
         </div>
         <div class="grid gap-2">
           <Label for="name">Name</Label>
@@ -269,7 +372,13 @@
         {#each itemsQuery.data as item (item.id)}
           <TableRow>
             <TableCell class="font-medium">{item.name}</TableCell>
-            <TableCell>{item.category?.title || "-"}</TableCell>
+            <TableCell>
+              {#if item.categories && item.categories.length > 0}
+                {item.categories.map((c) => c.title).join(", ")}
+              {:else}
+                -
+              {/if}
+            </TableCell>
             <TableCell>{item.setName || "-"}</TableCell>
             <TableCell>{item.rarity || "-"}</TableCell>
             <TableCell>${item.price}</TableCell>
@@ -295,18 +404,77 @@
     </DialogHeader>
     <div class="grid gap-4 py-4">
       <div class="grid gap-2">
-        <Label for="edit-category">Category</Label>
-        <SelectRoot type="single" bind:value={editSelectedCategoryValue}>
-          <SelectTrigger>
-            {categoriesQuery.data?.find((c: CategoryData) => c.id === editSelectedCategoryValue)
-              ?.title ?? "Select category"}
-          </SelectTrigger>
-          <SelectContent>
-            {#each categoriesQuery.data ?? [] as category (category.id)}
-              <SelectItem value={category.id}>{category.title}</SelectItem>
-            {/each}
-          </SelectContent>
-        </SelectRoot>
+        <Label for="edit-category">Categories</Label>
+        <div class="rounded-md border p-3">
+          <Input
+            placeholder="Search or create category..."
+            bind:value={categorySearchTerm}
+            class="mb-3"
+          />
+          <div class="max-h-48 space-y-2 overflow-y-auto">
+            {#if filteredCategories.length > 0}
+              {#each filteredCategories as category (category.id)}
+                <div class="flex items-center space-x-2">
+                  <Checkbox
+                    id={`edit-category-${category.id}`}
+                    checked={formData.categoryIds.includes(category.id)}
+                    onCheckedChange={() => toggleCategory(category.id)}
+                  />
+                  <Label for={`edit-category-${category.id}`} class="flex-1 cursor-pointer">
+                    {category.title}
+                  </Label>
+                </div>
+              {/each}
+            {/if}
+            {#if categorySearchTerm && !exactMatch}
+              <Button
+                variant="outline"
+                size="sm"
+                class="w-full"
+                onclick={handleCreateCategory}
+                disabled={createCategoryMutation.isPending}
+              >
+                {createCategoryMutation.isPending
+                  ? "Creating..."
+                  : `Create "${categorySearchTerm}"`}
+              </Button>
+            {/if}
+            {#if filteredCategories.length === 0 && !categorySearchTerm}
+              <p class="text-sm text-muted-foreground">No categories available</p>
+            {/if}
+            {#if filteredCategories.length === 0 && categorySearchTerm && exactMatch}
+              <p class="text-sm text-muted-foreground">No matching categories</p>
+            {/if}
+          </div>
+          {#if formData.categoryIds.length > 0}
+            <div class="mt-3 border-t pt-3">
+              <p class="text-sm font-medium">
+                Selected ({formData.categoryIds.length}):
+              </p>
+              <div class="mt-1 flex flex-wrap gap-1">
+                {#each formData.categoryIds as categoryId (categoryId)}
+                  {@const category = categoriesQuery.data?.find(
+                    (c: CategoryData) => c.id === categoryId,
+                  )}
+                  {#if category}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs"
+                    >
+                      {category.title}
+                      <button
+                        type="button"
+                        onclick={() => toggleCategory(categoryId)}
+                        class="hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  {/if}
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
       </div>
       <div class="grid gap-2">
         <Label for="edit-name">Name</Label>

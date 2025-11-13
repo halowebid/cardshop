@@ -1,7 +1,7 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { category, item } from "$lib/server/db/schema"
+import { category, item, itemCategory } from "$lib/server/db/schema"
 import { eq, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
@@ -16,10 +16,10 @@ export const GET: RequestHandler = async ({ params }) => {
         description: category.description,
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
-        itemCount: sql<number>`cast(count(${item.id}) as integer)`,
+        itemCount: sql<number>`cast(count(${itemCategory.itemId}) as integer)`,
       })
       .from(category)
-      .leftJoin(item, eq(item.categoryId, category.id))
+      .leftJoin(itemCategory, eq(itemCategory.categoryId, category.id))
       .where(eq(category.id, params.id))
       .groupBy(category.id)
 
@@ -87,13 +87,17 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
       return json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const items = await db.select().from(item).where(eq(item.categoryId, params.id)).limit(1)
+    const items = await db
+      .select()
+      .from(itemCategory)
+      .where(eq(itemCategory.categoryId, params.id))
+      .limit(1)
 
     if (items.length > 0) {
       const itemCount = await db
         .select({ count: sql<number>`cast(count(*) as integer)` })
-        .from(item)
-        .where(eq(item.categoryId, params.id))
+        .from(itemCategory)
+        .where(eq(itemCategory.categoryId, params.id))
 
       return json(
         {

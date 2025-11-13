@@ -3,7 +3,7 @@ import { toast } from "svelte-sonner"
 
 export type Item = {
   id: string
-  categoryId: string
+  categoryIds: string[]
   name: string
   setName: string | null
   rarity: string | null
@@ -13,16 +13,16 @@ export type Item = {
   stockQty: number
   createdAt: Date
   updatedAt: Date
-  category?: {
+  categories?: Array<{
     id: string
     title: string
     imageUrl: string | null
     description?: string | null
-  }
+  }>
 }
 
 export type ItemInsert = {
-  categoryId: string
+  categoryIds: string[]
   name: string
   setName?: string | null
   rarity?: string | null

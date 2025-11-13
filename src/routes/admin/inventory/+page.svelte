@@ -111,7 +111,13 @@
           {#each itemsQuery.data as item (item.id)}
             <TableRow>
               <TableCell class="font-medium">{item.name}</TableCell>
-              <TableCell>{item.category?.title || "-"}</TableCell>
+              <TableCell>
+                {#if item.categories && item.categories.length > 0}
+                  {item.categories.map((c) => c.title).join(", ")}
+                {:else}
+                  -
+                {/if}
+              </TableCell>
               <TableCell>{item.setName || "-"}</TableCell>
               <TableCell class={getStockStatus(item.stockQty)}>{item.stockQty}</TableCell>
               <TableCell>

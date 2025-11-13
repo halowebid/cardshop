@@ -53,7 +53,6 @@ async function seed() {
       .insert(schema.item)
       .values([
         {
-          categoryId: categories[0].id,
           name: "Black Lotus",
           setName: "Alpha",
           rarity: "rare",
@@ -64,7 +63,6 @@ async function seed() {
           stockQty: 1,
         },
         {
-          categoryId: categories[0].id,
           name: "Lightning Bolt",
           setName: "Beta",
           rarity: "common",
@@ -75,7 +73,6 @@ async function seed() {
           stockQty: 25,
         },
         {
-          categoryId: categories[0].id,
           name: "Jace, the Mind Sculptor",
           setName: "Worldwake",
           rarity: "mythic",
@@ -86,7 +83,6 @@ async function seed() {
           stockQty: 12,
         },
         {
-          categoryId: categories[0].id,
           name: "Sol Ring",
           setName: "Commander Legends",
           rarity: "uncommon",
@@ -97,7 +93,6 @@ async function seed() {
           stockQty: 100,
         },
         {
-          categoryId: categories[1].id,
           name: "Pikachu VMAX",
           setName: "Vivid Voltage",
           rarity: "rare",
@@ -107,7 +102,6 @@ async function seed() {
           stockQty: 30,
         },
         {
-          categoryId: categories[1].id,
           name: "Charizard V",
           setName: "Brilliant Stars",
           rarity: "rare",
@@ -117,7 +111,6 @@ async function seed() {
           stockQty: 15,
         },
         {
-          categoryId: categories[1].id,
           name: "Mewtwo GX",
           setName: "Shining Legends",
           rarity: "ultra_rare",
@@ -127,7 +120,6 @@ async function seed() {
           stockQty: 20,
         },
         {
-          categoryId: categories[1].id,
           name: "Professor's Research",
           setName: "Sword & Shield",
           rarity: "uncommon",
@@ -137,7 +129,6 @@ async function seed() {
           stockQty: 150,
         },
         {
-          categoryId: categories[2].id,
           name: "Blue-Eyes White Dragon",
           setName: "Legend of Blue Eyes",
           rarity: "ultra_rare",
@@ -147,7 +138,6 @@ async function seed() {
           stockQty: 8,
         },
         {
-          categoryId: categories[2].id,
           name: "Dark Magician",
           setName: "Legendary Collection",
           rarity: "ultra_rare",
@@ -157,7 +147,6 @@ async function seed() {
           stockQty: 12,
         },
         {
-          categoryId: categories[2].id,
           name: "Pot of Greed",
           setName: "Legend of Blue Eyes",
           rarity: "rare",
@@ -167,7 +156,6 @@ async function seed() {
           stockQty: 25,
         },
         {
-          categoryId: categories[3].id,
           name: "Monkey D. Luffy Leader",
           setName: "Romance Dawn",
           rarity: "leader",
@@ -177,7 +165,6 @@ async function seed() {
           stockQty: 40,
         },
         {
-          categoryId: categories[3].id,
           name: "Roronoa Zoro",
           setName: "Romance Dawn",
           rarity: "super_rare",
@@ -187,7 +174,6 @@ async function seed() {
           stockQty: 35,
         },
         {
-          categoryId: categories[3].id,
           name: "Nami",
           setName: "Pillars of Strength",
           rarity: "rare",
@@ -197,7 +183,6 @@ async function seed() {
           stockQty: 50,
         },
         {
-          categoryId: categories[4].id,
           name: "Son Goku",
           setName: "Colossal Warfare",
           rarity: "super_rare",
@@ -207,7 +192,6 @@ async function seed() {
           stockQty: 45,
         },
         {
-          categoryId: categories[4].id,
           name: "Vegeta",
           setName: "Union Force",
           rarity: "super_rare",
@@ -217,7 +201,6 @@ async function seed() {
           stockQty: 38,
         },
         {
-          categoryId: categories[4].id,
           name: "Beerus",
           setName: "Destroyer Kings",
           rarity: "secret_rare",
@@ -230,6 +213,29 @@ async function seed() {
       .returning()
 
     console.log(`✓ Created ${items.length} items`)
+
+    console.log("Creating item-category associations...")
+    await db.insert(schema.itemCategory).values([
+      { itemId: items[0].id, categoryId: categories[0].id },
+      { itemId: items[1].id, categoryId: categories[0].id },
+      { itemId: items[2].id, categoryId: categories[0].id },
+      { itemId: items[3].id, categoryId: categories[0].id },
+      { itemId: items[4].id, categoryId: categories[1].id },
+      { itemId: items[5].id, categoryId: categories[1].id },
+      { itemId: items[6].id, categoryId: categories[1].id },
+      { itemId: items[7].id, categoryId: categories[1].id },
+      { itemId: items[8].id, categoryId: categories[2].id },
+      { itemId: items[9].id, categoryId: categories[2].id },
+      { itemId: items[10].id, categoryId: categories[2].id },
+      { itemId: items[11].id, categoryId: categories[3].id },
+      { itemId: items[12].id, categoryId: categories[3].id },
+      { itemId: items[13].id, categoryId: categories[3].id },
+      { itemId: items[14].id, categoryId: categories[4].id },
+      { itemId: items[15].id, categoryId: categories[4].id },
+      { itemId: items[16].id, categoryId: categories[4].id },
+    ])
+
+    console.log("✓ Created item-category associations")
 
     console.log("✅ Database seeded successfully!")
     console.log(`   - ${categories.length} categories`)

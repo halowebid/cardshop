@@ -113,11 +113,11 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        {#if data.category}
+        {#each data.categories ?? [] as category}
           <Badge variant="outline" class="text-sm">
-            {data.category.title}
+            {category.title}
           </Badge>
-        {/if}
+        {/each}
         {#if data.item.rarity}
           <Badge variant={getRarityVariant(data.item.rarity)} class="text-sm">
             {data.item.rarity}

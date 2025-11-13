@@ -30,12 +30,10 @@
 
     let items = itemsQuery.data.filter((item) => item.stockQty > 0)
 
-    // Filter by category
     if (selectedCategory !== "all") {
-      items = items.filter((item) => item.categoryId === selectedCategory)
+      items = items.filter((item) => item.categoryIds.includes(selectedCategory))
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       items = items.filter(
@@ -207,15 +205,17 @@
                   {/if}
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                  <a
-                    href="/categories/{item.categoryId}"
-                    class="transition-opacity hover:opacity-70"
-                    onclick={(e) => e.stopPropagation()}
-                  >
-                    <Badge variant="outline" class="text-xs">
-                      {getCategoryName(item.categoryId)}
-                    </Badge>
-                  </a>
+                  {#each item.categories ?? [] as category}
+                    <a
+                      href="/categories/{category.id}"
+                      class="transition-opacity hover:opacity-70"
+                      onclick={(e) => e.stopPropagation()}
+                    >
+                      <Badge variant="outline" class="text-xs">
+                        {category.title}
+                      </Badge>
+                    </a>
+                  {/each}
                   {#if item.rarity}
                     <Badge variant={getRarityVariant(item.rarity)} class="text-xs">
                       {item.rarity}
