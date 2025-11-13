@@ -37,7 +37,6 @@
     quantity: number
   }
 
-  // For anonymous users, load cart from localStorage on mount
   onMount(() => {
     if (isAnonymous) {
       loadAnonymousCart()
@@ -47,7 +46,6 @@
   async function loadAnonymousCart() {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]")
     if (cart.length > 0) {
-      // Reload page with cart data in query params
       const cartParam = encodeURIComponent(JSON.stringify(cart))
       goto(`/cart?cart=${cartParam}`, { replaceState: true })
     }
@@ -75,14 +73,12 @@
     updatingItem = cartItemId
     try {
       if (isAnonymous) {
-        // Update localStorage for anonymous users
         const cart: CartItem[] = JSON.parse(localStorage.getItem("cart") || "[]")
         const item = cart.find((i: CartItem) => i.itemId === cartItemId)
         if (item) {
           item.quantity = newQuantity
           localStorage.setItem("cart", JSON.stringify(cart))
 
-          // Update local data
           const index = data.cartItems.findIndex((item) => item.itemId === cartItemId)
           if (index !== -1) {
             data.cartItems[index].quantity = newQuantity
@@ -91,7 +87,6 @@
           toast.success("Quantity updated")
         }
       } else {
-        // Update via API for authenticated users
         const response = await fetch(`/api/cart/${cartItemId}`, {
           method: "PATCH",
           headers: {
@@ -105,7 +100,6 @@
           throw new Error(error.error || "Failed to update quantity")
         }
 
-        // Update local data
         const index = data.cartItems.findIndex((item) => item.id === cartItemId)
         if (index !== -1) {
           data.cartItems[index].quantity = newQuantity
@@ -129,17 +123,14 @@
     removingItem = cartItemId
     try {
       if (isAnonymous) {
-        // Remove from localStorage for anonymous users
         const cart: CartItem[] = JSON.parse(localStorage.getItem("cart") || "[]")
         const filteredCart = cart.filter((i: CartItem) => i.itemId !== cartItemId)
         localStorage.setItem("cart", JSON.stringify(filteredCart))
 
-        // Remove from local data
         data.cartItems = data.cartItems.filter((item) => item.itemId !== cartItemId)
 
         toast.success("Item removed from cart")
       } else {
-        // Remove via API for authenticated users
         const response = await fetch(`/api/cart/${cartItemId}`, {
           method: "DELETE",
         })
@@ -148,7 +139,6 @@
           throw new Error("Failed to remove item")
         }
 
-        // Remove from local data
         data.cartItems = data.cartItems.filter((item) => item.id !== cartItemId)
 
         toast.success("Item removed from cart")

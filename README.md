@@ -101,21 +101,13 @@ bun run db:migrate
 
 ### 4. Create Admin User
 
-After signing in with Google for the first time, you need to manually set your role to admin:
+After signing in with Google for the first time, manually set your role to admin:
 
 ```sql
--- Connect to your PostgreSQL database
-psql $DATABASE_URL
-
--- Set your user as admin (replace with your email)
 UPDATE "user" SET role = 'admin' WHERE email = 'your-email@gmail.com';
 ```
 
-Verify admin access:
-
-```sql
-SELECT id, name, email, role FROM "user";
-```
+Admin users can access `/admin/*` routes to manage inventory, categories, items, and orders.
 
 ### 5. Seed Database (Optional)
 
@@ -159,66 +151,20 @@ Visit `http://localhost:5173` to see your app.
 ```
 src/
 ├── lib/
-│   ├── components/ui/     # Reusable UI components
-│   ├── server/
-│   │   └── db/
-│   │       ├── schema/    # Database schemas
-│   │       ├── migrations/ # Database migrations
-│   │       └── index.ts   # Database client
+│   ├── components/        # UI components
+│   ├── queries/           # TanStack Query hooks
+│   ├── server/db/         # Database schemas & migrations
 │   ├── auth.ts            # Auth configuration
 │   └── utils.ts           # Utility functions
 ├── routes/
-│   ├── admin/             # Admin dashboard pages
-│   │   ├── categories/    # Category management
-│   │   ├── inventory/     # Stock management
-│   │   ├── items/         # Item management
-│   │   └── orders/        # Order management
+│   ├── admin/             # Admin dashboard
 │   ├── api/               # API endpoints
-│   │   ├── cart/          # Cart operations
-│   │   ├── categories/    # Category CRUD
-│   │   ├── items/         # Item CRUD
-│   │   └── orders/        # Order processing
-│   ├── auth/              # Auth pages
-│   ├── cart/              # Shopping cart page
-│   ├── checkout/          # Checkout page
-│   ├── orders/            # Order history
-│   └── +page.svelte       # Shop homepage
-└── hooks.server.ts        # Server-side hooks
+│   ├── auth/              # Authentication
+│   ├── cart/              # Shopping cart
+│   ├── checkout/          # Checkout flow
+│   └── orders/            # Order history
+└── hooks.server.ts        # Server hooks
 ```
-
-## User Roles
-
-### Admin
-
-- Access to `/admin/*` routes
-- Manage inventory, categories, items, and orders
-- View statistics and low stock alerts
-
-### User (Default)
-
-- Browse and purchase items
-- View order history
-- Manage shopping cart
-
-## Features in Detail
-
-### Anonymous Cart Support
-
-- Cart stored in localStorage for anonymous users
-- Automatically migrates to database on sign-in
-- Handles duplicate items and stock validation
-
-### Real-time Stock Management
-
-- Stock decreases on order completion
-- Low stock alerts for admins (< 10 units)
-- Out of stock prevention at checkout
-
-### Order Management
-
-- Order statuses: pending, processing, completed, cancelled
-- Admin can update order status
-- Users can view order history
 
 ## Database Schema
 
@@ -234,13 +180,7 @@ Key tables:
 - `orderItem` - Order line items
 - `lowStockAlert` - Admin alerts
 
-## Code Style
-
-- **Formatting:** Prettier (no semis, double quotes, 100 char width)
-- **Import Order:** Auto-sorted (third-party → `@/` → relatives → local)
-- **TypeScript:** Strict mode, explicit types for exports
-- **Svelte:** Runes-based (`$state`, `$props`, `$derived`)
-- **Styling:** Tailwind CSS with `cn()` utility for conditional classes
+See `AGENTS.md` for code style guidelines and development best practices.
 
 ## Production Deployment
 

@@ -1,7 +1,6 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
 import { toast } from "svelte-sonner"
 
-// Types based on database schema and API responses
 export type Order = {
   id: string
   userId: string
@@ -28,7 +27,6 @@ export type OrderUpdate = {
   status: string
 }
 
-// Query Keys (hierarchical, type-safe)
 export const orderKeys = {
   all: ["orders"] as const,
   lists: () => [...orderKeys.all, "list"] as const,
@@ -36,10 +34,6 @@ export const orderKeys = {
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
 }
-
-// ============================================================================
-// QUERIES
-// ============================================================================
 
 /**
  * Fetches all orders (admin only)
@@ -82,10 +76,6 @@ export function useOrder(id: string) {
   }))
 }
 
-// ============================================================================
-// MUTATIONS
-// ============================================================================
-
 /**
  * Updates an order's status (admin only)
  * Automatically invalidates the orders list cache
@@ -109,9 +99,7 @@ export function useUpdateOrderStatus() {
       return (await response.json()) as Order
     },
     onSuccess: (data) => {
-      // Invalidate and refetch orders list
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() })
-      // Update the specific order in cache
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(data.id) })
       toast.success(`Order status updated to ${data.status}`)
     },

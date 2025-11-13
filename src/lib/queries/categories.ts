@@ -1,6 +1,5 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
 
-// Types based on database schema
 export type Category = {
   id: string
   title: string
@@ -8,10 +7,9 @@ export type Category = {
   description: string | null
   createdAt: Date
   updatedAt: Date
-  itemCount?: number // Optional field (computed on client)
+  itemCount?: number
 }
 
-// Query Keys
 export const categoryKeys = {
   all: ["categories"] as const,
   lists: () => [...categoryKeys.all, "list"] as const,
@@ -20,7 +18,6 @@ export const categoryKeys = {
   detail: (id: string) => [...categoryKeys.details(), id] as const,
 }
 
-// Fetch Functions
 async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories")
   if (!res.ok) {
@@ -39,7 +36,6 @@ async function fetchCategory(id: string): Promise<Category> {
   return res.json()
 }
 
-// Query Hooks
 export function useCategories() {
   return createQuery(() => ({
     queryKey: categoryKeys.list(),
@@ -55,7 +51,6 @@ export function useCategory(id: string) {
   }))
 }
 
-// Mutation Types
 export type CreateCategoryInput = {
   title: string
   imageUrl?: string
@@ -64,7 +59,6 @@ export type CreateCategoryInput = {
 
 export type UpdateCategoryInput = Partial<CreateCategoryInput>
 
-// Mutation Functions
 async function createCategory(data: CreateCategoryInput): Promise<Category> {
   const res = await fetch("/api/categories", {
     method: "POST",
@@ -107,7 +101,6 @@ async function deleteCategory(id: string): Promise<void> {
   }
 }
 
-// Mutation Hooks
 export function useCreateCategory() {
   const queryClient = useQueryClient()
   return createMutation(() => ({

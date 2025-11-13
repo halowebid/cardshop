@@ -1,7 +1,6 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
 import { toast } from "svelte-sonner"
 
-// Types based on database schema
 export type Item = {
   id: string
   categoryId: string
@@ -39,7 +38,6 @@ export type ItemFilters = {
   category_id?: string
 }
 
-// Query Keys (hierarchical, type-safe)
 export const itemKeys = {
   all: ["items"] as const,
   lists: () => [...itemKeys.all, "list"] as const,
@@ -48,7 +46,6 @@ export const itemKeys = {
   detail: (id: string) => [...itemKeys.details(), id] as const,
 }
 
-// Fetch Functions
 async function fetchItems(filters?: ItemFilters): Promise<Item[]> {
   const params = new URLSearchParams()
   if (filters?.set) params.set("set", filters.set)
@@ -107,7 +104,6 @@ async function deleteItem(id: string): Promise<void> {
   }
 }
 
-// Query Hooks
 export function useItems(filters?: ItemFilters) {
   return createQuery(() => ({
     queryKey: itemKeys.list(filters),
@@ -119,18 +115,16 @@ export function useItem(id: string) {
   return createQuery(() => ({
     queryKey: itemKeys.detail(id),
     queryFn: () => fetchItem(id),
-    enabled: !!id, // Only fetch if valid ID
+    enabled: !!id,
   }))
 }
 
-// Mutation Hooks
 export function useCreateItem() {
   const queryClient = useQueryClient()
 
   return createMutation(() => ({
     mutationFn: createItem,
     onSuccess: () => {
-      // Invalidate and refetch items list
       queryClient.invalidateQueries({ queryKey: itemKeys.lists() })
       toast.success("Item created successfully")
     },
@@ -146,9 +140,7 @@ export function useUpdateItem() {
   return createMutation(() => ({
     mutationFn: ({ id, data }: { id: string; data: Partial<ItemInsert> }) => updateItem(id, data),
     onSuccess: (updatedItem: Item) => {
-      // Update specific item in cache
       queryClient.setQueryData(itemKeys.detail(updatedItem.id), updatedItem)
-      // Invalidate list to refetch
       queryClient.invalidateQueries({ queryKey: itemKeys.lists() })
       toast.success("Item updated successfully")
     },
