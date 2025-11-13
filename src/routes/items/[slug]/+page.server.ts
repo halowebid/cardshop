@@ -1,23 +1,32 @@
 import { error } from "@sveltejs/kit"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
-import { and, eq, gt, inArray, ne } from "drizzle-orm"
+import { isUUID } from "$lib/utils/slug"
+import { and, eq, gt, inArray } from "drizzle-orm"
 
 import type { PageServerLoad } from "./$types"
 
 export const load: PageServerLoad = async ({ params }) => {
-  const { id } = params
+  const { slug } = params
+  const isId = isUUID(slug)
 
-  const [itemResult] = await db.select().from(item).where(eq(item.id, id)).limit(1)
+  const [itemResult] = await db
+    .select()
+    .from(item)
+    .where(isId ? eq(item.id, slug) : eq(item.slug, slug))
+    .limit(1)
 
   if (!itemResult) {
     throw error(404, "Item not found")
   }
 
+  const itemId = itemResult.id
+
   const categories = await db
     .select({
       id: category.id,
       title: category.title,
+      slug: category.slug,
       imageUrl: category.imageUrl,
       description: category.description,
       createdAt: category.createdAt,
@@ -25,12 +34,12 @@ export const load: PageServerLoad = async ({ params }) => {
     })
     .from(itemCategory)
     .innerJoin(category, eq(itemCategory.categoryId, category.id))
-    .where(eq(itemCategory.itemId, id))
+    .where(eq(itemCategory.itemId, itemId))
 
   const categoryIds = await db
     .select({ categoryId: itemCategory.categoryId })
     .from(itemCategory)
-    .where(eq(itemCategory.itemId, id))
+    .where(eq(itemCategory.itemId, itemId))
 
   const relatedItemIds =
     categoryIds.length > 0
@@ -46,7 +55,7 @@ export const load: PageServerLoad = async ({ params }) => {
       : []
 
   const uniqueRelatedItemIds = [...new Set(relatedItemIds.map((r) => r.itemId))].filter(
-    (itemId) => itemId !== id,
+    (itemId) => itemId !== itemId,
   )
 
   const relatedItems =

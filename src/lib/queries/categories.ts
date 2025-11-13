@@ -3,6 +3,7 @@ import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-qu
 export type Category = {
   id: string
   title: string
+  slug: string | null
   imageUrl: string | null
   description: string | null
   createdAt: Date
@@ -53,8 +54,9 @@ export function useCategory(id: string) {
 
 export type CreateCategoryInput = {
   title: string
-  imageUrl?: string
-  description?: string
+  slug?: string
+  imageUrl?: string | null
+  description?: string | null
 }
 
 export type UpdateCategoryInput = Partial<CreateCategoryInput>

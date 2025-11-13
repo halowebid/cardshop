@@ -20,26 +20,31 @@ async function seed() {
       .values([
         {
           title: "Magic: The Gathering",
+          slug: "magic-the-gathering",
           imageUrl: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=400",
           description: "Collectible and iconic Magic: The Gathering trading cards",
         },
         {
           title: "Pokemon",
+          slug: "pokemon",
           imageUrl: "https://images.unsplash.com/photo-1606728035253-49e8a23146de?w=400",
           description: "Gotta catch 'em all! Pokemon trading card game",
         },
         {
           title: "Yu-Gi-Oh!",
+          slug: "yu-gi-oh",
           imageUrl: "https://images.unsplash.com/photo-1611329857570-f02f340e7378?w=400",
           description: "Time to duel! Yu-Gi-Oh! trading cards",
         },
         {
           title: "One Piece",
+          slug: "one-piece",
           imageUrl: "https://images.unsplash.com/photo-1613376023733-0a73315d9b06?w=400",
           description: "Set sail with One Piece card game",
         },
         {
           title: "Dragon Ball",
+          slug: "dragon-ball",
           imageUrl: "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=400",
           description: "Power up with Dragon Ball Super card game",
         },
@@ -54,6 +59,7 @@ async function seed() {
       .values([
         {
           name: "Black Lotus",
+          slug: "black-lotus",
           setName: "Alpha",
           rarity: "rare",
           price: "27999.99",
@@ -64,6 +70,7 @@ async function seed() {
         },
         {
           name: "Lightning Bolt",
+          slug: "lightning-bolt",
           setName: "Beta",
           rarity: "common",
           price: "49.99",
@@ -74,6 +81,7 @@ async function seed() {
         },
         {
           name: "Jace, the Mind Sculptor",
+          slug: "jace-the-mind-sculptor",
           setName: "Worldwake",
           rarity: "mythic",
           price: "89.99",
@@ -84,6 +92,7 @@ async function seed() {
         },
         {
           name: "Sol Ring",
+          slug: "sol-ring",
           setName: "Commander Legends",
           rarity: "uncommon",
           price: "2.99",
@@ -94,6 +103,7 @@ async function seed() {
         },
         {
           name: "Pikachu VMAX",
+          slug: "pikachu-vmax",
           setName: "Vivid Voltage",
           rarity: "rare",
           price: "24.99",
@@ -103,6 +113,7 @@ async function seed() {
         },
         {
           name: "Charizard V",
+          slug: "charizard-v",
           setName: "Brilliant Stars",
           rarity: "rare",
           price: "45.99",
@@ -112,6 +123,7 @@ async function seed() {
         },
         {
           name: "Mewtwo GX",
+          slug: "mewtwo-gx",
           setName: "Shining Legends",
           rarity: "ultra_rare",
           price: "34.99",
@@ -121,6 +133,7 @@ async function seed() {
         },
         {
           name: "Professor's Research",
+          slug: "professors-research",
           setName: "Sword & Shield",
           rarity: "uncommon",
           price: "1.99",
@@ -130,6 +143,7 @@ async function seed() {
         },
         {
           name: "Blue-Eyes White Dragon",
+          slug: "blue-eyes-white-dragon",
           setName: "Legend of Blue Eyes",
           rarity: "ultra_rare",
           price: "149.99",
@@ -139,6 +153,7 @@ async function seed() {
         },
         {
           name: "Dark Magician",
+          slug: "dark-magician",
           setName: "Legendary Collection",
           rarity: "ultra_rare",
           price: "79.99",
@@ -148,6 +163,7 @@ async function seed() {
         },
         {
           name: "Pot of Greed",
+          slug: "pot-of-greed",
           setName: "Legend of Blue Eyes",
           rarity: "rare",
           price: "39.99",
@@ -157,6 +173,7 @@ async function seed() {
         },
         {
           name: "Monkey D. Luffy Leader",
+          slug: "monkey-d-luffy-leader",
           setName: "Romance Dawn",
           rarity: "leader",
           price: "19.99",
@@ -166,6 +183,7 @@ async function seed() {
         },
         {
           name: "Roronoa Zoro",
+          slug: "roronoa-zoro",
           setName: "Romance Dawn",
           rarity: "super_rare",
           price: "29.99",
@@ -175,6 +193,7 @@ async function seed() {
         },
         {
           name: "Nami",
+          slug: "nami",
           setName: "Pillars of Strength",
           rarity: "rare",
           price: "14.99",
@@ -184,6 +203,7 @@ async function seed() {
         },
         {
           name: "Son Goku",
+          slug: "son-goku",
           setName: "Colossal Warfare",
           rarity: "super_rare",
           price: "24.99",
@@ -193,6 +213,7 @@ async function seed() {
         },
         {
           name: "Vegeta",
+          slug: "vegeta",
           setName: "Union Force",
           rarity: "super_rare",
           price: "22.99",
@@ -202,6 +223,7 @@ async function seed() {
         },
         {
           name: "Beerus",
+          slug: "beerus",
           setName: "Destroyer Kings",
           rarity: "secret_rare",
           price: "39.99",

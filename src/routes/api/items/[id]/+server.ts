@@ -2,13 +2,21 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
+import { isUUID } from "$lib/utils/slug"
 import { eq, inArray } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
 export const GET: RequestHandler = async ({ params }) => {
   try {
-    const [foundItem] = await db.select().from(item).where(eq(item.id, params.id)).limit(1)
+    const idOrSlug = params.id
+    const isId = isUUID(idOrSlug)
+
+    const [foundItem] = await db
+      .select()
+      .from(item)
+      .where(isId ? eq(item.id, idOrSlug) : eq(item.slug, idOrSlug))
+      .limit(1)
 
     if (!foundItem) {
       return json({ error: "Item not found" }, { status: 404 })
@@ -49,7 +57,8 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     }
 
     const body = await request.json()
-    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty } = body
+    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty, slug } =
+      body
 
     if (categoryIds !== undefined) {
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
@@ -77,6 +86,16 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
+    if (slug !== undefined) {
+      if (slug.trim() === "") {
+        return json({ error: "Slug cannot be empty" }, { status: 400 })
+      }
+      const existingSlug = await db.select().from(item).where(eq(item.slug, slug)).limit(1)
+      if (existingSlug.length > 0 && existingSlug[0].id !== params.id) {
+        return json({ error: "Slug already exists" }, { status: 400 })
+      }
+      updateData.slug = slug
+    }
     if (setName !== undefined) updateData.setName = setName || null
     if (rarity !== undefined) updateData.rarity = rarity || null
     if (price !== undefined) updateData.price = price.toString()

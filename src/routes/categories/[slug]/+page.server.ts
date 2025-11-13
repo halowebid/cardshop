@@ -1,23 +1,31 @@
 import { error } from "@sveltejs/kit"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
+import { isUUID } from "$lib/utils/slug"
 import { and, eq, gt, inArray } from "drizzle-orm"
 
 import type { PageServerLoad } from "./$types"
 
 export const load: PageServerLoad = async ({ params }) => {
-  const { id } = params
+  const { slug } = params
+  const isId = isUUID(slug)
 
-  const [categoryResult] = await db.select().from(category).where(eq(category.id, id)).limit(1)
+  const [categoryResult] = await db
+    .select()
+    .from(category)
+    .where(isId ? eq(category.id, slug) : eq(category.slug, slug))
+    .limit(1)
 
   if (!categoryResult) {
     throw error(404, "Category not found")
   }
 
+  const categoryId = categoryResult.id
+
   const itemIds = await db
     .select({ itemId: itemCategory.itemId })
     .from(itemCategory)
-    .where(eq(itemCategory.categoryId, id))
+    .where(eq(itemCategory.categoryId, categoryId))
 
   const items =
     itemIds.length > 0

@@ -116,7 +116,7 @@
   {#if data.items.length > 0}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {#each data.items as item (item.id)}
-        <a href="/items/{item.id}" class="block transition-transform hover:scale-105">
+        <a href="/items/{item.slug}" class="block transition-transform hover:scale-105">
           <Card class="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
             <CardHeader class="p-0">
               {#if item.imageUrl}

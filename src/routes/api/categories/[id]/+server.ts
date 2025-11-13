@@ -1,17 +1,22 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { category, item, itemCategory } from "$lib/server/db/schema"
+import { category, itemCategory } from "$lib/server/db/schema"
+import { generateUniqueSlug, isUUID } from "$lib/utils/slug"
 import { eq, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
 export const GET: RequestHandler = async ({ params }) => {
   try {
+    const identifier = params.id
+    const isId = isUUID(identifier)
+
     const [categoryData] = await db
       .select({
         id: category.id,
         title: category.title,
+        slug: category.slug,
         imageUrl: category.imageUrl,
         description: category.description,
         createdAt: category.createdAt,
@@ -20,7 +25,7 @@ export const GET: RequestHandler = async ({ params }) => {
       })
       .from(category)
       .leftJoin(itemCategory, eq(itemCategory.categoryId, category.id))
-      .where(eq(category.id, params.id))
+      .where(isId ? eq(category.id, identifier) : eq(category.slug, identifier))
       .groupBy(category.id)
 
     if (!categoryData) {
@@ -45,7 +50,7 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
     }
 
     const body = await request.json()
-    const { title, imageUrl, description } = body
+    const { title, slug: providedSlug, imageUrl, description } = body
 
     if (title) {
       const existing = await db.select().from(category).where(eq(category.title, title)).limit(1)
@@ -55,8 +60,26 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
       }
     }
 
+    if (providedSlug) {
+      const existingSlug = await db
+        .select()
+        .from(category)
+        .where(eq(category.slug, providedSlug))
+        .limit(1)
+
+      if (existingSlug.length > 0 && existingSlug[0].id !== params.id) {
+        return json({ error: "Category with this slug already exists" }, { status: 409 })
+      }
+    }
+
     const updateData: Record<string, string | null> = {}
-    if (title !== undefined) updateData.title = title
+    if (title !== undefined) {
+      updateData.title = title
+      if (!providedSlug) {
+        updateData.slug = await generateUniqueSlug(title, "category", params.id)
+      }
+    }
+    if (providedSlug !== undefined) updateData.slug = providedSlug
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl
     if (description !== undefined) updateData.description = description
 

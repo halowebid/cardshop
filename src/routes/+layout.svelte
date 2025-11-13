@@ -2,7 +2,7 @@
   import "../app.css"
 
   import { QueryClientProvider } from "@tanstack/svelte-query"
-  import { browser, dev } from "$app/environment"
+  import { dev } from "$app/environment"
   import { page } from "$app/stores"
   import favicon from "$lib/assets/favicon.svg"
   import Footer from "$lib/components/layout/footer.svelte"
@@ -21,7 +21,9 @@
   const isAdminRoute = $derived($page.url.pathname.startsWith("/admin"))
 
   // Dynamically import devtools only on client in dev mode
-  let DevtoolsComponent = $state<any>(null)
+  let DevtoolsComponent = $state<
+    typeof import("@tanstack/svelte-query-devtools").SvelteQueryDevtools | null
+  >(null)
   onMount(async () => {
     if (dev) {
       const { SvelteQueryDevtools } = await import("@tanstack/svelte-query-devtools")

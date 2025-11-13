@@ -113,7 +113,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        {#each data.categories ?? [] as category}
+        {#each data.categories ?? [] as category (category.id)}
           <Badge variant="outline" class="text-sm">
             {category.title}
           </Badge>
@@ -168,7 +168,7 @@
       <h2 class="text-2xl font-bold">Related Items</h2>
       <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {#each data.relatedItems as relatedItem (relatedItem.id)}
-          <a href="/items/{relatedItem.id}" class="block transition-transform hover:scale-105">
+          <a href="/items/{relatedItem.slug}" class="block transition-transform hover:scale-105">
             <Card class="overflow-hidden transition-shadow hover:shadow-md">
               <CardHeader class="p-0">
                 {#if relatedItem.imageUrl}

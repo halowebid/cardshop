@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { browser } from "$app/environment"
   import { Button } from "$lib/components/ui/button"
   import { Checkbox } from "$lib/components/ui/checkbox"
   import {
@@ -40,6 +39,7 @@
     id: string
     categoryIds: string[]
     name: string
+    slug: string | null
     setName: string | null
     rarity: string | null
     price: string
@@ -62,6 +62,7 @@
   let formData = $state({
     categoryIds: [] as string[],
     name: "",
+    slug: "",
     setName: "",
     rarity: "",
     price: "",
@@ -71,12 +72,12 @@
   })
 
   let categorySearchTerm = $state("")
-  let showCreateCategory = $state(false)
 
   function resetForm() {
     formData = {
       categoryIds: [],
       name: "",
+      slug: "",
       setName: "",
       rarity: "",
       price: "",
@@ -85,7 +86,6 @@
       stockQty: "0",
     }
     categorySearchTerm = ""
-    showCreateCategory = false
   }
 
   function toggleCategory(categoryId: string) {
@@ -121,7 +121,6 @@
           toast.success(`Category "${newCategory.title}" created`)
           formData.categoryIds = [...formData.categoryIds, newCategory.id]
           categorySearchTerm = ""
-          showCreateCategory = false
         },
         onError: (error) => {
           toast.error(error.message)
@@ -140,9 +139,10 @@
       {
         categoryIds: formData.categoryIds,
         name: formData.name,
+        slug: formData.slug || undefined,
         setName: formData.setName || null,
         rarity: formData.rarity || null,
-        price: parseFloat(formData.price),
+        price: formData.price,
         imageUrl: formData.imageUrl || null,
         description: formData.description || null,
         stockQty: parseInt(formData.stockQty),
@@ -170,9 +170,10 @@
         data: {
           categoryIds: formData.categoryIds,
           name: formData.name,
+          slug: formData.slug || undefined,
           setName: formData.setName || null,
           rarity: formData.rarity || null,
-          price: parseFloat(formData.price),
+          price: formData.price,
           imageUrl: formData.imageUrl || null,
           description: formData.description || null,
           stockQty: parseInt(formData.stockQty),
@@ -204,6 +205,7 @@
     formData = {
       categoryIds: item.categoryIds,
       name: item.name,
+      slug: item.slug || "",
       setName: item.setName || "",
       rarity: item.rarity || "",
       price: item.price,
@@ -212,7 +214,6 @@
       stockQty: item.stockQty.toString(),
     }
     categorySearchTerm = ""
-    showCreateCategory = false
     editDialogOpen = true
   }
 
@@ -312,6 +313,14 @@
           <Input id="name" bind:value={formData.name} required />
         </div>
         <div class="grid gap-2">
+          <Label for="slug">Slug</Label>
+          <Input
+            id="slug"
+            bind:value={formData.slug}
+            placeholder="Optional - auto-generated from name if empty"
+          />
+        </div>
+        <div class="grid gap-2">
           <Label for="setName">Set Name</Label>
           <Input id="setName" bind:value={formData.setName} />
         </div>
@@ -360,6 +369,7 @@
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
+          <TableHead>Slug</TableHead>
           <TableHead>Category</TableHead>
           <TableHead>Set</TableHead>
           <TableHead>Rarity</TableHead>
@@ -372,6 +382,8 @@
         {#each itemsQuery.data as item (item.id)}
           <TableRow>
             <TableCell class="font-medium">{item.name}</TableCell>
+            <TableCell class="font-mono text-sm text-muted-foreground">{item.slug || "-"}</TableCell
+            >
             <TableCell>
               {#if item.categories && item.categories.length > 0}
                 {item.categories.map((c) => c.title).join(", ")}
@@ -479,6 +491,14 @@
       <div class="grid gap-2">
         <Label for="edit-name">Name</Label>
         <Input id="edit-name" bind:value={formData.name} required />
+      </div>
+      <div class="grid gap-2">
+        <Label for="edit-slug">Slug</Label>
+        <Input
+          id="edit-slug"
+          bind:value={formData.slug}
+          placeholder="Optional - auto-generated from name if empty"
+        />
       </div>
       <div class="grid gap-2">
         <Label for="edit-setName">Set Name</Label>

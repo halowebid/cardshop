@@ -182,7 +182,7 @@
     {:else}
       <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {#each filteredItems as item (item.id)}
-          <a href="/items/{item.id}" class="block transition-transform hover:scale-105">
+          <a href="/items/{item.slug}" class="block transition-transform hover:scale-105">
             <Card class="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
               <CardHeader class="p-0">
                 {#if item.imageUrl}
@@ -205,9 +205,9 @@
                   {/if}
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                  {#each item.categories ?? [] as category}
+                  {#each item.categories ?? [] as category (category.id)}
                     <a
-                      href="/categories/{category.id}"
+                      href="/categories/{category.slug}"
                       class="transition-opacity hover:opacity-70"
                       onclick={(e) => e.stopPropagation()}
                     >

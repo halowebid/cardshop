@@ -5,6 +5,7 @@ export type Item = {
   id: string
   categoryIds: string[]
   name: string
+  slug: string | null
   setName: string | null
   rarity: string | null
   price: string
@@ -16,6 +17,7 @@ export type Item = {
   categories?: Array<{
     id: string
     title: string
+    slug: string
     imageUrl: string | null
     description?: string | null
   }>
@@ -24,6 +26,7 @@ export type Item = {
 export type ItemInsert = {
   categoryIds: string[]
   name: string
+  slug?: string
   setName?: string | null
   rarity?: string | null
   price: string | number

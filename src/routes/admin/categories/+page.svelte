@@ -41,17 +41,23 @@
 
   let formData = $state({
     title: "",
+    slug: "",
     imageUrl: "",
     description: "",
   })
 
   function resetForm() {
-    formData = { title: "", imageUrl: "", description: "" }
+    formData = { title: "", slug: "", imageUrl: "", description: "" }
   }
 
   async function handleCreate() {
     try {
-      await createMutation.mutateAsync(formData)
+      await createMutation.mutateAsync({
+        title: formData.title,
+        slug: formData.slug || undefined,
+        imageUrl: formData.imageUrl || null,
+        description: formData.description || null,
+      })
       toast.success("Category created successfully")
       dialogOpen = false
       resetForm()
@@ -66,7 +72,12 @@
     try {
       await updateMutation.mutateAsync({
         id: selectedCategory.id,
-        data: formData,
+        data: {
+          title: formData.title,
+          slug: formData.slug || undefined,
+          imageUrl: formData.imageUrl || null,
+          description: formData.description || null,
+        },
       })
       toast.success("Category updated successfully")
       editDialogOpen = false
@@ -94,6 +105,7 @@
     selectedCategory = category
     formData = {
       title: category.title,
+      slug: category.slug || "",
       imageUrl: category.imageUrl || "",
       description: category.description || "",
     }
@@ -123,6 +135,14 @@
           <Input id="title" bind:value={formData.title} required />
         </div>
         <div class="grid gap-2">
+          <Label for="slug">Slug</Label>
+          <Input
+            id="slug"
+            bind:value={formData.slug}
+            placeholder="Optional - auto-generated from title if empty"
+          />
+        </div>
+        <div class="grid gap-2">
           <Label for="imageUrl">Image URL</Label>
           <Input id="imageUrl" bind:value={formData.imageUrl} />
         </div>
@@ -146,6 +166,7 @@
     <TableHeader>
       <TableRow>
         <TableHead>Title</TableHead>
+        <TableHead>Slug</TableHead>
         <TableHead>Description</TableHead>
         <TableHead>Items</TableHead>
         <TableHead class="text-right">Actions</TableHead>
@@ -154,11 +175,11 @@
     <TableBody>
       {#if categoriesQuery.isLoading}
         <TableRow>
-          <TableCell colspan={4} class="text-center">Loading categories...</TableCell>
+          <TableCell colspan={5} class="text-center">Loading categories...</TableCell>
         </TableRow>
       {:else if categoriesQuery.error}
         <TableRow>
-          <TableCell colspan={4} class="text-center text-red-500">
+          <TableCell colspan={5} class="text-center text-red-500">
             Error: {categoriesQuery.error.message}
           </TableCell>
         </TableRow>
@@ -166,6 +187,9 @@
         {#each categoriesQuery.data as category (category.id)}
           <TableRow>
             <TableCell class="font-medium">{category.title}</TableCell>
+            <TableCell class="font-mono text-sm text-muted-foreground"
+              >{category.slug || "-"}</TableCell
+            >
             <TableCell>{category.description || "-"}</TableCell>
             <TableCell>{category.itemCount || 0}</TableCell>
             <TableCell class="text-right">
@@ -190,7 +214,7 @@
         {/each}
       {:else}
         <TableRow>
-          <TableCell colspan={4} class="text-center">No categories found</TableCell>
+          <TableCell colspan={5} class="text-center">No categories found</TableCell>
         </TableRow>
       {/if}
     </TableBody>
@@ -207,6 +231,14 @@
       <div class="grid gap-2">
         <Label for="edit-title">Title</Label>
         <Input id="edit-title" bind:value={formData.title} required />
+      </div>
+      <div class="grid gap-2">
+        <Label for="edit-slug">Slug</Label>
+        <Input
+          id="edit-slug"
+          bind:value={formData.slug}
+          placeholder="Optional - auto-generated from title if empty"
+        />
       </div>
       <div class="grid gap-2">
         <Label for="edit-imageUrl">Image URL</Label>

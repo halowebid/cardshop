@@ -2,6 +2,7 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category } from "$lib/server/db/schema"
+import { generateUniqueSlug } from "$lib/utils/slug"
 import { eq } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
@@ -28,7 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const body = await request.json()
-    const { title, imageUrl, description } = body
+    const { title, slug: providedSlug, imageUrl, description } = body
 
     if (!title) {
       return json({ error: "Title is required" }, { status: 400 })
@@ -40,10 +41,25 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ error: "Category with this title already exists" }, { status: 409 })
     }
 
+    const slug = providedSlug || (await generateUniqueSlug(title, "category"))
+
+    if (providedSlug) {
+      const existingSlug = await db
+        .select()
+        .from(category)
+        .where(eq(category.slug, providedSlug))
+        .limit(1)
+
+      if (existingSlug.length > 0) {
+        return json({ error: "Category with this slug already exists" }, { status: 409 })
+      }
+    }
+
     const [newCategory] = await db
       .insert(category)
       .values({
         title,
+        slug,
         imageUrl: imageUrl || null,
         description: description || null,
       })

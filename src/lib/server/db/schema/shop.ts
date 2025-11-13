@@ -9,6 +9,7 @@ export const category = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     title: text("title").notNull().unique(),
+    slug: text("slug").notNull().unique(),
     imageUrl: text("image_url"),
     description: text("description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -19,6 +20,7 @@ export const category = pgTable(
   },
   (table) => ({
     titleIdx: uniqueIndex("category_title_idx").on(table.title),
+    slugIdx: uniqueIndex("category_slug_idx").on(table.slug),
   }),
 )
 
@@ -29,6 +31,7 @@ export const item = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
     setName: text("set_name"),
     rarity: text("rarity"),
     price: numeric("price", { precision: 10, scale: 2 }).notNull(),
@@ -44,6 +47,7 @@ export const item = pgTable(
   (table) => ({
     setNameIdx: index("item_set_name_idx").on(table.setName),
     rarityIdx: index("item_rarity_idx").on(table.rarity),
+    slugIdx: uniqueIndex("item_slug_idx").on(table.slug),
   }),
 )
 

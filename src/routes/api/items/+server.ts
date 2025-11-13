@@ -2,7 +2,8 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { generateUniqueSlug } from "$lib/utils/slug"
+import { and, eq, inArray } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
@@ -66,6 +67,7 @@ export const GET: RequestHandler = async ({ url }) => {
         itemId: itemCategory.itemId,
         categoryId: category.id,
         categoryTitle: category.title,
+        categorySlug: category.slug,
         categoryImageUrl: category.imageUrl,
       })
       .from(itemCategory)
@@ -74,7 +76,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
     const categoryMap = new Map<
       string,
-      Array<{ id: string; title: string; imageUrl: string | null }>
+      Array<{ id: string; title: string; slug: string; imageUrl: string | null }>
     >()
     for (const row of categoriesData) {
       if (!categoryMap.has(row.itemId)) {
@@ -83,6 +85,7 @@ export const GET: RequestHandler = async ({ url }) => {
       categoryMap.get(row.itemId)!.push({
         id: row.categoryId,
         title: row.categoryTitle,
+        slug: row.categorySlug,
         imageUrl: row.categoryImageUrl,
       })
     }
@@ -111,7 +114,8 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const body = await request.json()
-    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty } = body
+    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty, slug } =
+      body
 
     if (
       !categoryIds ||
@@ -135,10 +139,13 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ error: "One or more categories not found" }, { status: 404 })
     }
 
+    const itemSlug = slug || (await generateUniqueSlug(name, "item"))
+
     const [newItem] = await db
       .insert(item)
       .values({
         name,
+        slug: itemSlug,
         setName: setName || null,
         rarity: rarity || null,
         price: price.toString(),
