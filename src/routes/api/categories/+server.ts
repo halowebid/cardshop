@@ -2,11 +2,7 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category } from "$lib/server/db/schema"
-import {
-  buildPaginationMeta,
-  parsePaginationParams,
-  type PaginatedResponse,
-} from "$lib/types/pagination"
+import { buildPaginationMeta, parsePaginationParams } from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
 import { and, desc, eq, sql } from "drizzle-orm"
 import sanitizeHtml from "sanitize-html"

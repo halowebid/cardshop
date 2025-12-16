@@ -68,6 +68,7 @@
     isChecking = true
 
     try {
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const params = new URLSearchParams({ slug })
       if (excludeId) params.append("excludeId", excludeId)
 
@@ -105,6 +106,7 @@
     // Try appending numbers until we find an available slug
     for (let i = 2; i <= 10; i++) {
       const candidate = `${baseSlug}-${i}`
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const params = new URLSearchParams({ slug: candidate })
       if (excludeId) params.append("excludeId", excludeId)
 

@@ -2,7 +2,6 @@
   import Loader2Icon from "@lucide/svelte/icons/loader-circle"
   import SaveIcon from "@lucide/svelte/icons/save"
   import { goto } from "$app/navigation"
-  import { page } from "$app/stores"
   import FormSidebar from "$lib/components/admin/form-sidebar.svelte"
   import ImageUpload from "$lib/components/admin/image-upload.svelte"
   import RichTextEditor from "$lib/components/admin/rich-text-editor.svelte"
@@ -25,7 +24,6 @@
   import { Separator } from "$lib/components/ui/separator"
   import { useCategories } from "$lib/queries/categories"
   import { useItem, useUpdateItem, type ItemInsert } from "$lib/queries/items"
-  import { tick } from "svelte"
   import { toast } from "svelte-sonner"
 
   type Props = {
@@ -314,7 +312,7 @@
               <p class="text-sm text-muted-foreground">Loading categories...</p>
             {:else if categoriesQuery.data}
               <div class="space-y-2">
-                {#each categoriesQuery.data.data as category}
+                {#each categoriesQuery.data.data as category (category.id)}
                   <label class="flex items-center space-x-2">
                     <input
                       type="checkbox"

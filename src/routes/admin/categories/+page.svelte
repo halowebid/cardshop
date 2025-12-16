@@ -89,7 +89,7 @@
           </TableRow>
         </TableHeader>
         <TableBody>
-          {#each categoriesQuery.data.data as category}
+          {#each categoriesQuery.data.data as category (category.id)}
             <TableRow>
               <TableCell class="font-medium">
                 <div class="flex items-center gap-2">

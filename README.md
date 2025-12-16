@@ -14,7 +14,10 @@ PostgreSQL.
 
 - **Admin Dashboard**
   - Inventory management with low stock alerts
-  - Category management
+  - Category management with SEO optimization
+  - Item management with rich text editor
+  - Image uploads to Cloudflare R2
+  - Draft/active/archived status workflow
   - Order processing
   - Real-time statistics
 
@@ -37,6 +40,7 @@ PostgreSQL.
 - [Bun](https://bun.sh/) >= 1.3.2
 - PostgreSQL database
 - Google OAuth credentials (for authentication)
+- Cloudflare R2 bucket (for image uploads)
 
 ## Getting Started
 
@@ -72,6 +76,13 @@ GOOGLE_CLIENT_SECRET="<your-google-client-secret>"
 
 # Site URL
 PULIC_SITE_URL="http://localhost:5173"
+
+# Cloudflare R2 (Image Upload)
+AWS_ACCESS_KEY_ID="<your-r2-access-key-id>"
+AWS_SECRET_ACCESS_KEY="<your-r2-secret-access-key>"
+AWS_REGION="auto"
+AWS_S3_BUCKET="<your-r2-bucket-name>"
+AWS_DOMAIN="<your-custom-domain>"  # Optional, e.g., assets.example.com
 ```
 
 **Generating a secure secret:**
@@ -87,6 +98,23 @@ openssl rand -base64 32
 3. Enable Google+ API
 4. Create OAuth 2.0 credentials
 5. Add authorized redirect URI: `http://localhost:5173/api/auth/callback/google`
+
+**Setting up Cloudflare R2 for Image Uploads:**
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Navigate to R2 Object Storage
+3. Create a new bucket (e.g., `cardshop-images`)
+4. Go to "Manage R2 API Tokens" and create a new API token
+5. Copy the Access Key ID and Secret Access Key
+6. (Optional) Set up a custom domain for your R2 bucket
+7. Configure CORS policy to allow uploads from your domain
+
+**Image Upload Specifications:**
+
+- Maximum file size: 5MB
+- Allowed formats: JPEG, JPG, PNG, WebP, GIF
+- Files are stored with unique timestamped filenames
+- HTML content in item/category descriptions is sanitized for security
 
 ### 3. Database Setup
 

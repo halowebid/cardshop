@@ -20,7 +20,6 @@
     TableRow,
   } from "$lib/components/ui/table"
   import { useDeleteItem, useItemsPaginated } from "$lib/queries/items"
-  import { toast } from "svelte-sonner"
 
   let currentPage = $state(1)
   const ITEMS_PER_PAGE = 20
@@ -92,7 +91,7 @@
           </TableRow>
         </TableHeader>
         <TableBody>
-          {#each itemsQuery.data.data as item}
+          {#each itemsQuery.data.data as item (item.id)}
             <TableRow>
               <TableCell class="font-medium">
                 <div class="flex items-center gap-2">

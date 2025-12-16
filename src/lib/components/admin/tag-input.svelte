@@ -84,7 +84,7 @@
 
   {#if value && value.length > 0}
     <div class="flex flex-wrap gap-2">
-      {#each value as tag}
+      {#each value as tag (tag)}
         <Badge variant="secondary" class="flex items-center gap-1">
           {tag}
           <button

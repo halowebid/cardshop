@@ -241,7 +241,7 @@
             <p class="text-sm text-muted-foreground">Loading categories...</p>
           {:else if categoriesQuery.data}
             <div class="space-y-2">
-              {#each categoriesQuery.data.data as category}
+              {#each categoriesQuery.data.data as category (category.id)}
                 <label class="flex items-center space-x-2">
                   <input
                     type="checkbox"

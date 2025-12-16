@@ -2,11 +2,7 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { cartItem, item, order, orderItem, user } from "$lib/server/db/schema"
-import {
-  buildPaginationMeta,
-  parsePaginationParams,
-  type PaginatedResponse,
-} from "$lib/types/pagination"
+import { buildPaginationMeta, parsePaginationParams } from "$lib/types/pagination"
 import { desc, eq, inArray, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"

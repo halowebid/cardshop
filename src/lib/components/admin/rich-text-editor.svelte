@@ -31,22 +31,12 @@
      */
     label?: string
     /**
-     * Placeholder text
-     */
-    placeholder?: string
-    /**
      * Optional CSS classes
      */
     class?: string
   }
 
-  let {
-    value = $bindable(),
-    onchange,
-    label = "Description",
-    placeholder = "",
-    class: className,
-  }: Props = $props()
+  let { value = $bindable(), onchange, label = "Description", class: className }: Props = $props()
 
   let element: HTMLDivElement
   let editor: Editor | null = $state(null)

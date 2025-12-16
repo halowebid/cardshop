@@ -157,7 +157,7 @@
 
   {#if itemsQuery.isLoading}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {#each Array(8) as _}
+      {#each Array(8) as _, index (index)}
         <Skeleton class="h-96" />
       {/each}
     </div>

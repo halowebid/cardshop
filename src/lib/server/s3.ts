@@ -2,8 +2,8 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client
 import { env } from "$env/dynamic/private"
 
 /**
- * S3 client instance configured with environment credentials
- * Used for uploading and managing images in AWS S3
+ * S3-compatible client configured for Cloudflare R2
+ * Used for uploading and managing images in R2 storage
  */
 const s3Client = new S3Client({
   region: env.AWS_REGION,
@@ -14,10 +14,10 @@ const s3Client = new S3Client({
 })
 
 /**
- * Uploads a file to AWS S3 bucket
+ * Uploads a file to S3-compatible storage (Cloudflare R2)
  * @param file - File object containing the file to upload
  * @param fileName - Custom filename to use in S3 (with extension)
- * @returns The public URL of the uploaded file
+ * @returns The public URL of the uploaded file using custom domain
  */
 export async function uploadToS3(file: File, fileName: string): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -31,11 +31,13 @@ export async function uploadToS3(file: File, fileName: string): Promise<string> 
 
   await s3Client.send(new PutObjectCommand(uploadParams))
 
-  return `https://${env.AWS_S3_BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${fileName}`
+  // Use custom domain if provided, otherwise fall back to S3 URL
+  const domain = env.AWS_DOMAIN || `${env.AWS_S3_BUCKET}.s3.${env.AWS_REGION}.amazonaws.com`
+  return `https://${domain}/${fileName}`
 }
 
 /**
- * Deletes a file from AWS S3 bucket
+ * Deletes a file from S3-compatible storage (Cloudflare R2)
  * @param fileKey - The S3 key (filename) of the file to delete
  */
 export async function deleteFromS3(fileKey: string): Promise<void> {

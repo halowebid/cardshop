@@ -25,6 +25,13 @@ export default defineConfig(
     rules: {
       "no-undef": "off",
       "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
       "svelte/no-navigation-without-resolve": "off",
     },
   },
