@@ -1,6 +1,8 @@
 <script lang="ts">
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left"
   import ShoppingCartIcon from "@lucide/svelte/icons/shopping-cart"
+  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert"
+  import { Alert, AlertDescription } from "$lib/components/ui/alert"
   import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
   import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card"
@@ -134,6 +136,14 @@
             {data.item.stockQty} in stock
           </p>
         </div>
+        {#if data.item.stockQty > 0 && data.item.stockQty < 10}
+          <Alert>
+            <TriangleAlertIcon class="h-4 w-4" />
+            <AlertDescription>
+              Low stock - only {data.item.stockQty} remaining
+            </AlertDescription>
+          </Alert>
+        {/if}
       </div>
 
       {#if data.item.description}

@@ -2,13 +2,19 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
+import {
+  buildPaginationMeta,
+  parsePaginationParams,
+  type PaginatedResponse,
+} from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
 export const GET: RequestHandler = async ({ url }) => {
   try {
+    const { page, limit } = parsePaginationParams(url)
     const setName = url.searchParams.get("set")
     const rarity = url.searchParams.get("rarity")
     const categoryId = url.searchParams.get("category_id")
@@ -18,12 +24,28 @@ export const GET: RequestHandler = async ({ url }) => {
     if (rarity) conditions.push(eq(item.rarity, rarity))
 
     let items
+    let total = 0
 
     if (categoryId) {
+      // Count total items with category filter
+      const countQuery = db
+        .select({ count: sql<number>`count(*)` })
+        .from(item)
+        .innerJoin(itemCategory, eq(item.id, itemCategory.itemId))
+        .where(
+          conditions.length > 0
+            ? and(eq(itemCategory.categoryId, categoryId), ...conditions)
+            : eq(itemCategory.categoryId, categoryId),
+        )
+      const [countResult] = await countQuery
+      total = Number(countResult.count)
+
+      // Fetch paginated items
       const itemsWithCategory = await db
         .select({
           id: item.id,
           name: item.name,
+          slug: item.slug,
           setName: item.setName,
           rarity: item.rarity,
           price: item.price,
@@ -40,18 +62,39 @@ export const GET: RequestHandler = async ({ url }) => {
             ? and(eq(itemCategory.categoryId, categoryId), ...conditions)
             : eq(itemCategory.categoryId, categoryId),
         )
-        .orderBy(item.createdAt)
+        .orderBy(desc(item.updatedAt))
+        .limit(limit)
+        .offset((page - 1) * limit)
 
       items = itemsWithCategory
     } else {
+      // Count total items
+      const countQuery =
+        conditions.length > 0
+          ? db
+              .select({ count: sql<number>`count(*)` })
+              .from(item)
+              .where(and(...conditions))
+          : db.select({ count: sql<number>`count(*)` }).from(item)
+      const [countResult] = await countQuery
+      total = Number(countResult.count)
+
+      // Fetch paginated items
       const itemsQuery =
         conditions.length > 0
           ? db
               .select()
               .from(item)
               .where(and(...conditions))
-              .orderBy(item.createdAt)
-          : db.select().from(item).orderBy(item.createdAt)
+              .orderBy(desc(item.updatedAt))
+              .limit(limit)
+              .offset((page - 1) * limit)
+          : db
+              .select()
+              .from(item)
+              .orderBy(desc(item.updatedAt))
+              .limit(limit)
+              .offset((page - 1) * limit)
 
       items = await itemsQuery
     }
@@ -59,7 +102,8 @@ export const GET: RequestHandler = async ({ url }) => {
     const itemIds = items.map((itemData) => itemData.id)
 
     if (itemIds.length === 0) {
-      return json([])
+      const meta = buildPaginationMeta(page, limit, total)
+      return json({ data: [], meta })
     }
 
     const categoriesData = await db
@@ -96,7 +140,9 @@ export const GET: RequestHandler = async ({ url }) => {
       categories: categoryMap.get(itemData.id) ?? [],
     }))
 
-    return json(result)
+    const meta = buildPaginationMeta(page, limit, total)
+
+    return json({ data: result, meta })
   } catch (error) {
     console.error("Error fetching items:", error)
     return json({ error: "Failed to fetch items" }, { status: 500 })

@@ -17,6 +17,12 @@
     DialogTitle,
   } from "$lib/components/ui/dialog"
   import {
+    Pagination,
+    PaginationContent,
+    PaginationNextButton,
+    PaginationPrevButton,
+  } from "$lib/components/ui/pagination"
+  import {
     SelectContent,
     SelectItem,
     Select as SelectRoot,
@@ -32,8 +38,11 @@
   } from "$lib/components/ui/table"
   import { useOrders, useUpdateOrderStatus, type Order } from "$lib/queries/orders"
 
+  let currentPage = $state(1)
+  const ITEMS_PER_PAGE = 20
+
   // Queries - fetch on client only with 60s refetch interval for new orders
-  const ordersQuery = useOrders()
+  const ordersQuery = useOrders(() => currentPage, ITEMS_PER_PAGE)
 
   // Mutations
   const updateStatusMutation = useUpdateOrderStatus()
@@ -116,12 +125,12 @@
         <p class="text-destructive">Error loading orders: {ordersQuery.error.message}</p>
       </CardContent>
     </Card>
-  {:else if ordersQuery.data}
+  {:else if ordersQuery.data?.data}
     <Card>
       <CardHeader>
         <CardTitle>All Orders</CardTitle>
         <CardDescription>
-          {ordersQuery.data.length} total order{ordersQuery.data.length !== 1 ? "s" : ""}
+          {ordersQuery.data.meta.total} total order{ordersQuery.data.meta.total !== 1 ? "s" : ""}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -138,14 +147,14 @@
             </TableRow>
           </TableHeader>
           <TableBody>
-            {#if ordersQuery.data.length === 0}
+            {#if ordersQuery.data.data.length === 0}
               <TableRow>
                 <TableCell colspan={7} class="text-center text-muted-foreground">
                   No orders yet
                 </TableCell>
               </TableRow>
             {:else}
-              {#each ordersQuery.data as order (order.id)}
+              {#each ordersQuery.data.data as order (order.id)}
                 <TableRow>
                   <TableCell class="font-mono text-sm">{order.id.slice(0, 8)}...</TableCell>
                   <TableCell>
@@ -182,6 +191,26 @@
         </Table>
       </CardContent>
     </Card>
+
+    {#if ordersQuery.data.meta.totalPages > 1}
+      <Pagination
+        count={ordersQuery.data.meta.total}
+        perPage={ITEMS_PER_PAGE}
+        bind:page={currentPage}
+        siblingCount={1}
+      >
+        <PaginationContent>
+          <PaginationPrevButton />
+          <div class="mx-4 text-sm text-muted-foreground">
+            Page {currentPage} of {ordersQuery.data.meta.totalPages} • Showing {(currentPage - 1) *
+              ITEMS_PER_PAGE +
+              1} to {Math.min(currentPage * ITEMS_PER_PAGE, ordersQuery.data.meta.total)} of {ordersQuery
+              .data.meta.total}
+          </div>
+          <PaginationNextButton />
+        </PaginationContent>
+      </Pagination>
+    {/if}
   {/if}
 </div>
 

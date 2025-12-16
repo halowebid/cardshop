@@ -69,7 +69,7 @@
       Error loading dashboard: {dashboardQuery.error?.message}
     </div>
   {:else if dashboardQuery.data}
-    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium">Total Revenue</CardTitle>
@@ -107,23 +107,6 @@
           <div class="text-2xl font-bold">{dashboardQuery.data.stats.totalItems}</div>
           <p class="text-xs text-muted-foreground">
             In {dashboardQuery.data.stats.totalCategories} categories
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Stock Alerts</CardTitle>
-          <AlertTriangleIcon class="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div class="text-2xl font-bold text-yellow-600">
-            {dashboardQuery.data.stats.lowStockItems}
-          </div>
-          <p class="text-xs text-muted-foreground">
-            <span class="text-destructive"
-              >{dashboardQuery.data.stats.outOfStockItems} out of stock</span
-            >
           </p>
         </CardContent>
       </Card>

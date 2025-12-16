@@ -36,6 +36,13 @@
       "when": 1762994979118,
       "tag": "0004_grey_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1763019279096,
+      "tag": "0005_motionless_masque",
+      "breakpoints": true
     }
   ]
 }

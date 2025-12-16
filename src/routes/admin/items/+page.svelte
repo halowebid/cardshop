@@ -13,6 +13,12 @@
   import { Input } from "$lib/components/ui/input"
   import { Label } from "$lib/components/ui/label"
   import {
+    Pagination,
+    PaginationContent,
+    PaginationNextButton,
+    PaginationPrevButton,
+  } from "$lib/components/ui/pagination"
+  import {
     Table,
     TableBody,
     TableCell,
@@ -22,11 +28,19 @@
   } from "$lib/components/ui/table"
   import { Textarea } from "$lib/components/ui/textarea"
   import { useCategories, useCreateCategory } from "$lib/queries/categories"
-  import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "$lib/queries/items"
+  import {
+    useCreateItem,
+    useDeleteItem,
+    useItemsPaginated,
+    useUpdateItem,
+  } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
+  let currentPage = $state(1)
+  const ITEMS_PER_PAGE = 20
+
   // Queries - fetch on client only
-  const itemsQuery = useItems()
+  const itemsQuery = useItemsPaginated(() => currentPage, ITEMS_PER_PAGE)
   const categoriesQuery = useCategories()
 
   // Mutations
@@ -97,13 +111,13 @@
   }
 
   const filteredCategories = $derived(
-    (categoriesQuery.data ?? []).filter((c: CategoryData) =>
+    (categoriesQuery.data?.data ?? []).filter((c: CategoryData) =>
       c.title.toLowerCase().includes(categorySearchTerm.toLowerCase()),
     ),
   )
 
   const exactMatch = $derived(
-    (categoriesQuery.data ?? []).find(
+    (categoriesQuery.data?.data ?? []).find(
       (c: CategoryData) => c.title.toLowerCase() === categorySearchTerm.toLowerCase(),
     ),
   )
@@ -285,7 +299,7 @@
                 </p>
                 <div class="mt-1 flex flex-wrap gap-1">
                   {#each formData.categoryIds as categoryId (categoryId)}
-                    {@const category = categoriesQuery.data?.find(
+                    {@const category = categoriesQuery.data?.data?.find(
                       (c: CategoryData) => c.id === categoryId,
                     )}
                     {#if category}
@@ -364,7 +378,7 @@
     <div class="flex items-center justify-center p-8">
       <p class="text-destructive">Error loading items: {itemsQuery.error.message}</p>
     </div>
-  {:else if itemsQuery.data}
+  {:else if itemsQuery.data?.data}
     <Table>
       <TableHeader>
         <TableRow>
@@ -379,7 +393,7 @@
         </TableRow>
       </TableHeader>
       <TableBody>
-        {#each itemsQuery.data as item (item.id)}
+        {#each itemsQuery.data.data as item (item.id)}
           <TableRow>
             <TableCell class="font-medium">{item.name}</TableCell>
             <TableCell class="font-mono text-sm text-muted-foreground">{item.slug || "-"}</TableCell
@@ -407,6 +421,28 @@
     </Table>
   {/if}
 </div>
+
+{#if itemsQuery.data?.meta && itemsQuery.data.meta.totalPages > 1}
+  <div class="mt-4 space-y-2">
+    <Pagination
+      count={itemsQuery.data.meta.total}
+      perPage={ITEMS_PER_PAGE}
+      bind:page={currentPage}
+      siblingCount={1}
+    >
+      <PaginationContent>
+        <PaginationPrevButton />
+        <div class="mx-4 text-sm text-muted-foreground">
+          Page {currentPage} of {itemsQuery.data.meta.totalPages} • Showing {(currentPage - 1) *
+            ITEMS_PER_PAGE +
+            1} to {Math.min(currentPage * ITEMS_PER_PAGE, itemsQuery.data.meta.total)} of {itemsQuery
+            .data.meta.total}
+        </div>
+        <PaginationNextButton />
+      </PaginationContent>
+    </Pagination>
+  </div>
+{/if}
 
 <Dialog bind:open={editDialogOpen}>
   <DialogContent class="max-h-[90vh] overflow-y-auto">
@@ -465,7 +501,7 @@
               </p>
               <div class="mt-1 flex flex-wrap gap-1">
                 {#each formData.categoryIds as categoryId (categoryId)}
-                  {@const category = categoriesQuery.data?.find(
+                  {@const category = categoriesQuery.data?.data?.find(
                     (c: CategoryData) => c.id === categoryId,
                   )}
                   {#if category}

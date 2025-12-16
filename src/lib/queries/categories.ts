@@ -1,4 +1,5 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
+import type { PaginatedResponse } from "$lib/types/pagination"
 
 export type Category = {
   id: string
@@ -14,13 +15,14 @@ export type Category = {
 export const categoryKeys = {
   all: ["categories"] as const,
   lists: () => [...categoryKeys.all, "list"] as const,
-  list: () => [...categoryKeys.lists()] as const,
+  list: (page?: number, limit?: number) => [...categoryKeys.lists(), { page, limit }] as const,
   details: () => [...categoryKeys.all, "detail"] as const,
   detail: (id: string) => [...categoryKeys.details(), id] as const,
 }
 
-async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch("/api/categories")
+async function fetchCategories(page = 1, limit = 20): Promise<PaginatedResponse<Category>> {
+  const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+  const res = await fetch(`/api/categories?${params}`)
   if (!res.ok) {
     const error = await res.json()
     throw new Error(error.error || "Failed to fetch categories")
@@ -37,11 +39,14 @@ async function fetchCategory(id: string): Promise<Category> {
   return res.json()
 }
 
-export function useCategories() {
-  return createQuery(() => ({
-    queryKey: categoryKeys.list(),
-    queryFn: fetchCategories,
-  }))
+export function useCategories(page: number | (() => number) = 1, limit = 20) {
+  return createQuery(() => {
+    const currentPage = typeof page === "function" ? page() : page
+    return {
+      queryKey: categoryKeys.list(currentPage, limit),
+      queryFn: () => fetchCategories(currentPage, limit),
+    }
+  })
 }
 
 export function useCategory(id: string) {
@@ -108,7 +113,7 @@ export function useCreateCategory() {
   return createMutation(() => ({
     mutationFn: createCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() })
     },
   }))
 }
@@ -118,7 +123,7 @@ export function useUpdateCategory() {
   return createMutation(() => ({
     mutationFn: updateCategory,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() })
       queryClient.invalidateQueries({ queryKey: categoryKeys.detail(variables.id) })
     },
   }))
@@ -129,7 +134,7 @@ export function useDeleteCategory() {
   return createMutation(() => ({
     mutationFn: deleteCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() })
     },
   }))
 }

@@ -1,15 +1,51 @@
 <script lang="ts">
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left"
+  import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle"
   import ShoppingCartIcon from "@lucide/svelte/icons/shopping-cart"
   import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
   import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card"
   import { Empty, EmptyDescription, EmptyTitle } from "$lib/components/ui/empty"
+  import { Skeleton } from "$lib/components/ui/skeleton"
+  import { useItemsInfinite } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
   let { data } = $props()
 
   let addingToCartId = $state<string | null>(null)
+  let sentinelElement = $state<HTMLElement | null>(null)
+
+  const itemsQuery = useItemsInfinite(() => ({ category_id: data.category.id }))
+
+  const allItems = $derived.by(() => {
+    if (!itemsQuery.data?.pages) return []
+    return itemsQuery.data.pages.flatMap((page) => page.data).filter((item) => item.stockQty > 0)
+  })
+
+  const totalItems = $derived(itemsQuery.data?.pages?.[0]?.meta.total ?? 0)
+
+  $effect(() => {
+    if (!sentinelElement || !itemsQuery.hasNextPage) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && itemsQuery.hasNextPage && !itemsQuery.isFetchingNextPage) {
+            itemsQuery.fetchNextPage()
+          }
+        })
+      },
+      {
+        rootMargin: "200px",
+      },
+    )
+
+    observer.observe(sentinelElement)
+
+    return () => {
+      observer.disconnect()
+    }
+  })
 
   function formatCurrency(amount: number | string) {
     const num = typeof amount === "string" ? parseFloat(amount) : amount
@@ -37,7 +73,6 @@
 
     addingToCartId = itemId
     try {
-      // Try API first (for authenticated users)
       const response = await fetch("/api/cart", {
         method: "POST",
         headers: {
@@ -46,7 +81,6 @@
         body: JSON.stringify({ itemId, quantity: 1 }),
       })
 
-      // If unauthorized (401), user is anonymous - use localStorage
       if (response.status === 401) {
         const cart = JSON.parse(localStorage.getItem("cart") || "[]")
         const existingItem = cart.find(
@@ -81,7 +115,6 @@
 </script>
 
 <div class="container mx-auto space-y-8 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
-  <!-- Back to Shop Button -->
   <div>
     <Button variant="ghost" href="/">
       <ArrowLeftIcon class="mr-2 h-4 w-4" />
@@ -89,7 +122,6 @@
     </Button>
   </div>
 
-  <!-- Category Header -->
   <div class="space-y-4">
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
       {#if data.category.imageUrl}
@@ -104,18 +136,34 @@
         {#if data.category.description}
           <p class="text-lg text-muted-foreground">{data.category.description}</p>
         {/if}
-        <p class="text-sm text-muted-foreground">
-          {data.items.length}
-          {data.items.length === 1 ? "item" : "items"} available
-        </p>
+        {#if itemsQuery.isLoading}
+          <Skeleton class="h-5 w-24" />
+        {:else}
+          <p class="text-sm text-muted-foreground">
+            {totalItems}
+            {totalItems === 1 ? "item" : "items"} available
+          </p>
+        {/if}
       </div>
     </div>
   </div>
 
-  <!-- Items Grid -->
-  {#if data.items.length > 0}
+  {#if itemsQuery.isLoading}
     <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {#each data.items as item (item.id)}
+      {#each Array(8) as _}
+        <Skeleton class="h-96" />
+      {/each}
+    </div>
+  {:else if itemsQuery.error}
+    <Card class="py-12">
+      <CardContent class="text-center">
+        <p class="text-lg font-medium text-destructive">Error loading items</p>
+        <p class="text-sm text-muted-foreground">{itemsQuery.error.message}</p>
+      </CardContent>
+    </Card>
+  {:else if allItems.length > 0}
+    <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {#each allItems as item (item.id)}
         <a href="/items/{item.slug}" class="block transition-transform hover:scale-105">
           <Card class="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
             <CardHeader class="p-0">
@@ -141,6 +189,11 @@
                 {/if}
               </div>
               <p class="text-xs text-muted-foreground">{item.stockQty} in stock</p>
+              {#if item.stockQty > 0 && item.stockQty < 10}
+                <Badge variant="destructive" class="w-fit text-xs">
+                  Only {item.stockQty} left
+                </Badge>
+              {/if}
             </CardContent>
             <CardFooter class="p-4 pt-0">
               <Button
@@ -162,6 +215,13 @@
           </Card>
         </a>
       {/each}
+    </div>
+
+    <!-- Infinite scroll sentinel -->
+    <div bind:this={sentinelElement} class="flex justify-center py-8">
+      {#if itemsQuery.isFetchingNextPage}
+        <LoaderCircleIcon class="h-8 w-8 animate-spin text-muted-foreground" />
+      {/if}
     </div>
   {:else}
     <Empty>

@@ -1,12 +1,17 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { cartItem, item, order, orderItem } from "$lib/server/db/schema"
-import { eq } from "drizzle-orm"
+import { cartItem, item, order, orderItem, user } from "$lib/server/db/schema"
+import {
+  buildPaginationMeta,
+  parsePaginationParams,
+  type PaginatedResponse,
+} from "$lib/types/pagination"
+import { desc, eq, inArray, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ request, url }) => {
   try {
     const session = await auth.api.getSession({
       headers: request.headers,
@@ -16,13 +21,85 @@ export const GET: RequestHandler = async ({ request }) => {
       return json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const orders = await db
-      .select()
-      .from(order)
-      .where(eq(order.userId, session.user.id))
-      .orderBy(order.createdAt)
+    const { page, limit } = parsePaginationParams(url)
+    const isAdmin = session.user.role === "admin"
 
-    return json(orders)
+    if (isAdmin) {
+      // Admin: fetch all orders with user and item details
+      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(order)
+      const total = Number(countResult.count)
+
+      const orders = await db
+        .select({
+          id: order.id,
+          userId: order.userId,
+          totalPrice: order.totalPrice,
+          status: order.status,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          userName: user.name,
+          userEmail: user.email,
+        })
+        .from(order)
+        .leftJoin(user, eq(order.userId, user.id))
+        .orderBy(desc(order.updatedAt))
+        .limit(limit)
+        .offset((page - 1) * limit)
+
+      const orderIds = orders.map((o) => o.id)
+      if (orderIds.length === 0) {
+        const meta = buildPaginationMeta(page, limit, total)
+        return json({ data: [], meta })
+      }
+
+      const orderItemsData = await db
+        .select({
+          id: orderItem.id,
+          orderId: orderItem.orderId,
+          itemId: orderItem.itemId,
+          quantity: orderItem.quantity,
+          priceAtTime: orderItem.priceAtTime,
+          itemName: item.name,
+          itemImageUrl: item.imageUrl,
+        })
+        .from(orderItem)
+        .leftJoin(item, eq(orderItem.itemId, item.id))
+        .where(inArray(orderItem.orderId, orderIds))
+
+      const itemsByOrder = new Map<string, typeof orderItemsData>()
+      for (const oi of orderItemsData) {
+        if (!itemsByOrder.has(oi.orderId)) {
+          itemsByOrder.set(oi.orderId, [])
+        }
+        itemsByOrder.get(oi.orderId)!.push(oi)
+      }
+
+      const result = orders.map((o) => ({
+        ...o,
+        items: itemsByOrder.get(o.id) || [],
+      }))
+
+      const meta = buildPaginationMeta(page, limit, total)
+      return json({ data: result, meta })
+    } else {
+      // Regular user: fetch only their orders
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(order)
+        .where(eq(order.userId, session.user.id))
+      const total = Number(countResult.count)
+
+      const orders = await db
+        .select()
+        .from(order)
+        .where(eq(order.userId, session.user.id))
+        .orderBy(desc(order.updatedAt))
+        .limit(limit)
+        .offset((page - 1) * limit)
+
+      const meta = buildPaginationMeta(page, limit, total)
+      return json({ data: orders, meta })
+    }
   } catch (error) {
     console.error("Error fetching orders:", error)
     return json({ error: "Failed to fetch orders" }, { status: 500 })

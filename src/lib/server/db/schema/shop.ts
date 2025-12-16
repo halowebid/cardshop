@@ -21,6 +21,7 @@ export const category = pgTable(
   (table) => ({
     titleIdx: uniqueIndex("category_title_idx").on(table.title),
     slugIdx: uniqueIndex("category_slug_idx").on(table.slug),
+    updatedAtIdx: index("category_updated_at_idx").on(table.updatedAt),
   }),
 )
 
@@ -48,6 +49,7 @@ export const item = pgTable(
     setNameIdx: index("item_set_name_idx").on(table.setName),
     rarityIdx: index("item_rarity_idx").on(table.rarity),
     slugIdx: uniqueIndex("item_slug_idx").on(table.slug),
+    updatedAtIdx: index("item_updated_at_idx").on(table.updatedAt),
   }),
 )
 
@@ -112,6 +114,7 @@ export const order = pgTable(
   (table) => ({
     userIdx: index("order_user_idx").on(table.userId),
     createdAtIdx: index("order_created_at_idx").on(table.createdAt),
+    updatedAtIdx: index("order_updated_at_idx").on(table.updatedAt),
   }),
 )
 

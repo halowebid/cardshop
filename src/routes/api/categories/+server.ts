@@ -2,16 +2,35 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category } from "$lib/server/db/schema"
+import {
+  buildPaginationMeta,
+  parsePaginationParams,
+  type PaginatedResponse,
+} from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
-import { eq } from "drizzle-orm"
+import { desc, eq, sql } from "drizzle-orm"
 
 import type { RequestHandler } from "./$types"
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
   try {
-    const categories = await db.select().from(category).orderBy(category.createdAt)
+    const { page, limit } = parsePaginationParams(url)
 
-    return json(categories)
+    // Count total categories
+    const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(category)
+    const total = Number(countResult.count)
+
+    // Fetch paginated categories
+    const categories = await db
+      .select()
+      .from(category)
+      .orderBy(desc(category.updatedAt))
+      .limit(limit)
+      .offset((page - 1) * limit)
+
+    const meta = buildPaginationMeta(page, limit, total)
+
+    return json({ data: categories, meta })
   } catch (error) {
     console.error("Error fetching categories:", error)
     return json({ error: "Failed to fetch categories" }, { status: 500 })

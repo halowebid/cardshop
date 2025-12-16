@@ -1,8 +1,8 @@
 import { error } from "@sveltejs/kit"
 import { db } from "$lib/server/db"
-import { category, item, itemCategory } from "$lib/server/db/schema"
+import { category } from "$lib/server/db/schema"
 import { isUUID } from "$lib/utils/slug"
-import { and, eq, gt, inArray } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 
 import type { PageServerLoad } from "./$types"
 
@@ -20,31 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
     throw error(404, "Category not found")
   }
 
-  const categoryId = categoryResult.id
-
-  const itemIds = await db
-    .select({ itemId: itemCategory.itemId })
-    .from(itemCategory)
-    .where(eq(itemCategory.categoryId, categoryId))
-
-  const items =
-    itemIds.length > 0
-      ? await db
-          .select()
-          .from(item)
-          .where(
-            and(
-              inArray(
-                item.id,
-                itemIds.map((i) => i.itemId),
-              ),
-              gt(item.stockQty, 0),
-            ),
-          )
-      : []
-
   return {
     category: categoryResult,
-    items,
   }
 }

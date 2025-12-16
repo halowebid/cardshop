@@ -12,6 +12,12 @@
   import { Input } from "$lib/components/ui/input"
   import { Label } from "$lib/components/ui/label"
   import {
+    Pagination,
+    PaginationContent,
+    PaginationNextButton,
+    PaginationPrevButton,
+  } from "$lib/components/ui/pagination"
+  import {
     Table,
     TableBody,
     TableCell,
@@ -29,7 +35,10 @@
   } from "$lib/queries/categories"
   import { toast } from "svelte-sonner"
 
-  const categoriesQuery = useCategories()
+  let currentPage = $state(1)
+  const ITEMS_PER_PAGE = 20
+
+  const categoriesQuery = useCategories(() => currentPage, ITEMS_PER_PAGE)
   const createMutation = useCreateCategory()
   const updateMutation = useUpdateCategory()
   const deleteMutation = useDeleteCategory()
@@ -183,8 +192,8 @@
             Error: {categoriesQuery.error.message}
           </TableCell>
         </TableRow>
-      {:else if categoriesQuery.data && categoriesQuery.data.length > 0}
-        {#each categoriesQuery.data as category (category.id)}
+      {:else if categoriesQuery.data?.data && categoriesQuery.data.data.length > 0}
+        {#each categoriesQuery.data.data as category (category.id)}
           <TableRow>
             <TableCell class="font-medium">{category.title}</TableCell>
             <TableCell class="font-mono text-sm text-muted-foreground"
@@ -220,6 +229,29 @@
     </TableBody>
   </Table>
 </div>
+
+{#if categoriesQuery.data?.meta && categoriesQuery.data.meta.totalPages > 1}
+  <div class="mt-4 space-y-2">
+    <Pagination
+      count={categoriesQuery.data.meta.total}
+      perPage={ITEMS_PER_PAGE}
+      bind:page={currentPage}
+      siblingCount={1}
+    >
+      <PaginationContent>
+        <PaginationPrevButton />
+        <div class="mx-4 text-sm text-muted-foreground">
+          Page {currentPage} of {categoriesQuery.data.meta.totalPages} • Showing {(currentPage -
+            1) *
+            ITEMS_PER_PAGE +
+            1} to {Math.min(currentPage * ITEMS_PER_PAGE, categoriesQuery.data.meta.total)} of {categoriesQuery
+            .data.meta.total}
+        </div>
+        <PaginationNextButton />
+      </PaginationContent>
+    </Pagination>
+  </div>
+{/if}
 
 <Dialog bind:open={editDialogOpen}>
   <DialogContent>

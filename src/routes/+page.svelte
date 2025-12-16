@@ -1,5 +1,6 @@
 <script lang="ts">
   import FilterIcon from "@lucide/svelte/icons/filter"
+  import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle"
   import SearchIcon from "@lucide/svelte/icons/search"
   import ShoppingCartIcon from "@lucide/svelte/icons/shopping-cart"
   import { Badge } from "$lib/components/ui/badge"
@@ -15,24 +16,33 @@
   } from "$lib/components/ui/select"
   import { Skeleton } from "$lib/components/ui/skeleton"
   import { useCategories } from "$lib/queries/categories"
-  import { useItems } from "$lib/queries/items"
+  import { useItemsInfinite } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
   const categoriesQuery = useCategories()
-  const itemsQuery = useItems()
 
   let searchQuery = $state("")
   let selectedCategory = $state<string>("all")
   let addingToCart = $state<string | null>(null)
+  let sentinelElement = $state<HTMLElement | null>(null)
 
-  let filteredItems = $derived.by(() => {
-    if (!itemsQuery.data) return []
-
-    let items = itemsQuery.data.filter((item) => item.stockQty > 0)
-
+  const filters = $derived.by(() => {
+    const f: { category_id?: string } = {}
     if (selectedCategory !== "all") {
-      items = items.filter((item) => item.categoryIds.includes(selectedCategory))
+      f.category_id = selectedCategory
     }
+    return f
+  })
+
+  const itemsQuery = useItemsInfinite(() => filters)
+
+  const allItems = $derived.by(() => {
+    if (!itemsQuery.data?.pages) return []
+    return itemsQuery.data.pages.flatMap((page) => page.data)
+  })
+
+  const filteredItems = $derived.by(() => {
+    let items = allItems.filter((item) => item.stockQty > 0)
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
@@ -45,6 +55,31 @@
     }
 
     return items
+  })
+
+  const totalItems = $derived(itemsQuery.data?.pages?.[0]?.meta.total ?? 0)
+
+  $effect(() => {
+    if (!sentinelElement || !itemsQuery.hasNextPage) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && itemsQuery.hasNextPage && !itemsQuery.isFetchingNextPage) {
+            itemsQuery.fetchNextPage()
+          }
+        })
+      },
+      {
+        rootMargin: "200px",
+      },
+    )
+
+    observer.observe(sentinelElement)
+
+    return () => {
+      observer.disconnect()
+    }
   })
 
   function formatCurrency(amount: number | string) {
@@ -68,8 +103,8 @@
   }
 
   function getCategoryName(categoryId: string) {
-    if (!categoriesQuery.data) return "Unknown"
-    const cat = categoriesQuery.data.find((c) => c.id === categoryId)
+    if (!categoriesQuery.data?.data) return "Unknown"
+    const cat = categoriesQuery.data.data.find((c: { id: string }) => c.id === categoryId)
     return cat?.title || "Unknown"
   }
 
@@ -164,7 +199,7 @@
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {#each categoriesQuery.data as category (category.id)}
+            {#each categoriesQuery.data.data as category (category.id)}
               <SelectItem value={category.id}>{category.title}</SelectItem>
             {/each}
           </SelectContent>
@@ -226,6 +261,11 @@
                   <p class="text-2xl font-bold">{formatCurrency(item.price)}</p>
                   <p class="text-xs text-muted-foreground">{item.stockQty} in stock</p>
                 </div>
+                {#if item.stockQty > 0 && item.stockQty < 10}
+                  <Badge variant="destructive" class="w-fit text-xs">
+                    Only {item.stockQty} left
+                  </Badge>
+                {/if}
               </CardContent>
               <CardFooter class="p-4 pt-0">
                 <Button
@@ -247,11 +287,20 @@
           </a>
         {/each}
       </div>
+
+      <!-- Infinite scroll sentinel -->
+      {#if itemsQuery.hasNextPage}
+        <div bind:this={sentinelElement} class="flex justify-center py-8">
+          {#if itemsQuery.isFetchingNextPage}
+            <LoaderCircleIcon class="h-8 w-8 animate-spin text-muted-foreground" />
+          {/if}
+        </div>
+      {/if}
     {/if}
 
     <div class="pb-4 text-center text-sm text-muted-foreground">
-      Showing {filteredItems.length} of {itemsQuery.data.filter((item) => item.stockQty > 0).length}
-      item{itemsQuery.data.filter((item) => item.stockQty > 0).length !== 1 ? "s" : ""}
+      Showing {filteredItems.length} of {totalItems}
+      item{totalItems !== 1 ? "s" : ""}
     </div>
   {/if}
 </div>

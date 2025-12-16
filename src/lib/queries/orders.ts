@@ -1,4 +1,5 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
+import type { PaginatedResponse } from "$lib/types/pagination"
 import { toast } from "svelte-sonner"
 
 export type Order = {
@@ -30,7 +31,7 @@ export type OrderUpdate = {
 export const orderKeys = {
   all: ["orders"] as const,
   lists: () => [...orderKeys.all, "list"] as const,
-  list: () => [...orderKeys.lists()] as const,
+  list: (page?: number, limit?: number) => [...orderKeys.lists(), { page, limit }] as const,
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
 }
@@ -40,20 +41,28 @@ export const orderKeys = {
  * Includes user information and order items with item details
  * Refetches every 60 seconds to check for new orders
  */
-export function useOrders() {
-  return createQuery(() => ({
-    queryKey: orderKeys.list(),
-    queryFn: async () => {
-      const response = await fetch("/api/orders")
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to fetch orders")
-      }
-      const data = (await response.json()) as Order[]
-      return data
-    },
-    refetchInterval: 60000, // Refetch every 60 seconds for new orders
-  }))
+export function useOrders(page: number | (() => number) = 1, limit = 20) {
+  return createQuery(() => {
+    const currentPage = typeof page === "function" ? page() : page
+    return {
+      queryKey: orderKeys.list(currentPage, limit),
+      queryFn: async () => {
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: limit.toString(),
+        })
+        const response = await fetch(`/api/orders?${params.toString()}`, {
+          credentials: "include",
+        })
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || "Failed to fetch orders")
+        }
+        return (await response.json()) as PaginatedResponse<Order>
+      },
+      refetchInterval: 60000, // Refetch every 60 seconds for new orders
+    }
+  })
 }
 
 /**
