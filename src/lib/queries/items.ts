@@ -15,14 +15,13 @@ export type Item = {
   name: string
   slug: string | null
   setName: string | null
-  rarity: string | null
+  rarityId: string | null
   price: string
   imageUrl: string | null
   description: string | null
   stockQty: number
   status: Status
   visibility: boolean
-  tags: string[] | null
   metaTitle: string | null
   metaDescription: string | null
   uploadedImageId: string | null
@@ -35,6 +34,20 @@ export type Item = {
     imageUrl: string | null
     description?: string | null
   }>
+  rarity?: {
+    id: string
+    name: string
+    slug: string | null
+    color: string | null
+    description: string | null
+  } | null
+  tagIds?: string[]
+  tags?: Array<{
+    id: string
+    name: string
+    slug: string | null
+    description: string | null
+  }>
 }
 
 export type ItemInsert = {
@@ -42,14 +55,14 @@ export type ItemInsert = {
   name: string
   slug?: string
   setName?: string | null
-  rarity?: string | null
+  rarityId?: string | null
   price: string | number
   imageUrl?: string | null
   description?: string | null
   stockQty?: number
   status?: Status
   visibility?: boolean
-  tags?: string[]
+  tagIds?: string[]
   metaTitle?: string
   metaDescription?: string
   uploadedImageId?: string
@@ -57,7 +70,7 @@ export type ItemInsert = {
 
 export type ItemFilters = {
   set?: string
-  rarity?: string
+  rarity_id?: string
   category_id?: string
 }
 
@@ -80,7 +93,7 @@ async function fetchItemsPaginated(
   params.set("page", page.toString())
   params.set("limit", limit.toString())
   if (filters?.set) params.set("set", filters.set)
-  if (filters?.rarity) params.set("rarity", filters.rarity)
+  if (filters?.rarity_id) params.set("rarity_id", filters.rarity_id)
   if (filters?.category_id) params.set("category_id", filters.category_id)
 
   const url = `/api/items?${params.toString()}`
@@ -95,7 +108,7 @@ async function fetchItemsPaginated(
 async function fetchItems(filters?: ItemFilters): Promise<Item[]> {
   const params = new URLSearchParams()
   if (filters?.set) params.set("set", filters.set)
-  if (filters?.rarity) params.set("rarity", filters.rarity)
+  if (filters?.rarity_id) params.set("rarity_id", filters.rarity_id)
   if (filters?.category_id) params.set("category_id", filters.category_id)
 
   const url = `/api/items${params.toString() ? `?${params.toString()}` : ""}`

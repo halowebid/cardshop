@@ -1,7 +1,7 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { category, item, itemCategory } from "$lib/server/db/schema"
+import { category, item, itemCategory, itemTag, rarity, tag } from "$lib/server/db/schema"
 import { generateUniqueSlug, isUUID } from "$lib/utils/slug"
 import { eq, inArray } from "drizzle-orm"
 import sanitizeHtml from "sanitize-html"
@@ -23,6 +23,7 @@ export const GET: RequestHandler = async ({ params }) => {
       return json({ error: "Item not found" }, { status: 404 })
     }
 
+    // Fetch categories
     const categoriesData = await db
       .select({
         id: category.id,
@@ -34,10 +35,30 @@ export const GET: RequestHandler = async ({ params }) => {
       .innerJoin(category, eq(itemCategory.categoryId, category.id))
       .where(eq(itemCategory.itemId, foundItem.id))
 
+    // Fetch rarity
+    const rarityData = foundItem.rarityId
+      ? await db.select().from(rarity).where(eq(rarity.id, foundItem.rarityId)).limit(1)
+      : []
+
+    // Fetch tags
+    const tagsData = await db
+      .select({
+        id: tag.id,
+        name: tag.name,
+        slug: tag.slug,
+        description: tag.description,
+      })
+      .from(itemTag)
+      .innerJoin(tag, eq(itemTag.tagId, tag.id))
+      .where(eq(itemTag.itemId, foundItem.id))
+
     const result = {
       ...foundItem,
       categoryIds: categoriesData.map((c) => c.id),
       categories: categoriesData,
+      rarity: rarityData[0] ?? null,
+      tagIds: tagsData.map((t) => t.id),
+      tags: tagsData,
     }
 
     return json(result)
@@ -62,7 +83,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       categoryIds,
       name,
       setName,
-      rarity,
+      rarityId,
       price,
       imageUrl,
       description,
@@ -70,12 +91,13 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       slug,
       status,
       visibility,
-      tags,
+      tagIds,
       metaTitle,
       metaDescription,
       uploadedImageId,
     } = body
 
+    // Handle category associations
     if (categoryIds !== undefined) {
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
         return json({ error: "categoryIds must be a non-empty array" }, { status: 400 })
@@ -100,6 +122,30 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       )
     }
 
+    // Handle tag associations
+    if (tagIds !== undefined) {
+      if (Array.isArray(tagIds) && tagIds.length > 0) {
+        const tagsExist = await db.select().from(tag).where(inArray(tag.id, tagIds))
+
+        if (tagsExist.length !== tagIds.length) {
+          return json({ error: "One or more tags not found" }, { status: 404 })
+        }
+      }
+
+      // Delete existing tag associations
+      await db.delete(itemTag).where(eq(itemTag.itemId, params.id))
+
+      // Insert new tag associations
+      if (Array.isArray(tagIds) && tagIds.length > 0) {
+        await db.insert(itemTag).values(
+          tagIds.map((tId: string) => ({
+            itemId: params.id,
+            tagId: tId,
+          })),
+        )
+      }
+    }
+
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
     if (slug !== undefined) {
@@ -114,7 +160,19 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       }
     }
     if (setName !== undefined) updateData.setName = setName || null
-    if (rarity !== undefined) updateData.rarity = rarity || null
+    if (rarityId !== undefined) {
+      if (rarityId) {
+        const [rarityExists] = await db
+          .select()
+          .from(rarity)
+          .where(eq(rarity.id, rarityId))
+          .limit(1)
+        if (!rarityExists) {
+          return json({ error: "Rarity not found" }, { status: 404 })
+        }
+      }
+      updateData.rarityId = rarityId || null
+    }
     if (price !== undefined) updateData.price = price.toString()
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null
     if (description !== undefined) {
@@ -130,7 +188,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     if (stockQty !== undefined) updateData.stockQty = stockQty
     if (status !== undefined) updateData.status = status
     if (visibility !== undefined) updateData.visibility = visibility
-    if (tags !== undefined) updateData.tags = tags || null
     if (metaTitle !== undefined) updateData.metaTitle = metaTitle || null
     if (metaDescription !== undefined) updateData.metaDescription = metaDescription || null
     if (uploadedImageId !== undefined) updateData.uploadedImageId = uploadedImageId || null
@@ -153,6 +210,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       return json({ error: "Item not found" }, { status: 404 })
     }
 
+    // Fetch categories
     const categoriesData = await db
       .select({
         id: category.id,
@@ -164,10 +222,30 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       .innerJoin(category, eq(itemCategory.categoryId, category.id))
       .where(eq(itemCategory.itemId, foundItem.id))
 
+    // Fetch rarity
+    const rarityData = foundItem.rarityId
+      ? await db.select().from(rarity).where(eq(rarity.id, foundItem.rarityId)).limit(1)
+      : []
+
+    // Fetch tags
+    const tagsData = await db
+      .select({
+        id: tag.id,
+        name: tag.name,
+        slug: tag.slug,
+        description: tag.description,
+      })
+      .from(itemTag)
+      .innerJoin(tag, eq(itemTag.tagId, tag.id))
+      .where(eq(itemTag.itemId, foundItem.id))
+
     return json({
       ...foundItem,
       categoryIds: categoriesData.map((c) => c.id),
       categories: categoriesData,
+      rarity: rarityData[0] ?? null,
+      tagIds: tagsData.map((t) => t.id),
+      tags: tagsData,
     })
   } catch (error) {
     console.error("Error updating item:", error)

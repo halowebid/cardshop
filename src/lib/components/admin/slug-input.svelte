@@ -32,9 +32,9 @@
      */
     class?: string
     /**
-     * Entity type for slug checking ('item' or 'category')
+     * Entity type for slug checking ('item', 'category', 'rarity', or 'tag')
      */
-    entityType: "item" | "category"
+    entityType: "item" | "category" | "rarity" | "tag"
     /**
      * Current entity ID (for updates - exclude from uniqueness check)
      */
@@ -72,7 +72,14 @@
       const params = new URLSearchParams({ slug })
       if (excludeId) params.append("excludeId", excludeId)
 
-      const endpoint = entityType === "item" ? "items" : "categories"
+      const endpoint =
+        entityType === "item"
+          ? "items"
+          : entityType === "category"
+            ? "categories"
+            : entityType === "rarity"
+              ? "rarities"
+              : "tags"
       const response = await fetch(`/api/${endpoint}/check-slug?${params}`)
       const data = await response.json()
 
@@ -101,7 +108,14 @@
   }
 
   async function generateSuggestedSlug(baseSlug: string): Promise<string> {
-    const endpoint = entityType === "item" ? "items" : "categories"
+    const endpoint =
+      entityType === "item"
+        ? "items"
+        : entityType === "category"
+          ? "categories"
+          : entityType === "rarity"
+            ? "rarities"
+            : "tags"
 
     // Try appending numbers until we find an available slug
     for (let i = 2; i <= 10; i++) {

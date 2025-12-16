@@ -2,11 +2,13 @@
   import BoxIcon from "@lucide/svelte/icons/box"
   import ChevronUpIcon from "@lucide/svelte/icons/chevron-up"
   import ClipboardListIcon from "@lucide/svelte/icons/clipboard-list"
+  import FolderTreeIcon from "@lucide/svelte/icons/folder-tree"
+  import GemIcon from "@lucide/svelte/icons/gem"
   import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard"
   import LogOutIcon from "@lucide/svelte/icons/log-out"
   import PackageIcon from "@lucide/svelte/icons/package"
   import StoreIcon from "@lucide/svelte/icons/store"
-  import TagIcon from "@lucide/svelte/icons/tag"
+  import TagsIcon from "@lucide/svelte/icons/tags"
   import { page } from "$app/stores"
   import { Avatar, AvatarFallback } from "$lib/components/ui/avatar"
   import {
@@ -39,35 +41,63 @@
 
   let { user }: Props = $props()
 
-  const navItems: Array<{
-    href: string
+  const navSections: Array<{
     label: string
-    icon: Component
+    items: Array<{
+      href: string
+      label: string
+      icon: Component
+    }>
   }> = [
     {
-      href: "/admin",
-      label: "Dashboard",
-      icon: LayoutDashboardIcon,
+      label: "Overview",
+      items: [
+        {
+          href: "/admin",
+          label: "Dashboard",
+          icon: LayoutDashboardIcon,
+        },
+      ],
     },
     {
-      href: "/admin/categories",
-      label: "Categories",
-      icon: TagIcon,
+      label: "Products",
+      items: [
+        {
+          href: "/admin/items",
+          label: "Items",
+          icon: PackageIcon,
+        },
+        {
+          href: "/admin/categories",
+          label: "Categories",
+          icon: FolderTreeIcon,
+        },
+        {
+          href: "/admin/rarities",
+          label: "Rarities",
+          icon: GemIcon,
+        },
+        {
+          href: "/admin/tags",
+          label: "Tags",
+          icon: TagsIcon,
+        },
+      ],
     },
     {
-      href: "/admin/items",
-      label: "Items",
-      icon: PackageIcon,
-    },
-    {
-      href: "/admin/inventory",
-      label: "Inventory",
-      icon: BoxIcon,
-    },
-    {
-      href: "/admin/orders",
-      label: "Orders",
-      icon: ClipboardListIcon,
+      label: "Operations",
+      items: [
+        {
+          href: "/admin/inventory",
+          label: "Inventory",
+          icon: BoxIcon,
+        },
+        {
+          href: "/admin/orders",
+          label: "Orders",
+          icon: ClipboardListIcon,
+        },
+      ],
     },
   ]
 
@@ -109,25 +139,27 @@
     </SidebarMenu>
   </SidebarHeader>
   <SidebarContent>
-    <SidebarGroup>
-      <SidebarGroupLabel>Management</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {#each navItems as item (item.href)}
-            <SidebarMenuItem>
-              <SidebarMenuButton size="default" isActive={currentPath === item.href}>
-                {#snippet child({ props })}
-                  <a {...props} href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </a>
-                {/snippet}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          {/each}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    {#each navSections as section (section.label)}
+      <SidebarGroup>
+        <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {#each section.items as item (item.href)}
+              <SidebarMenuItem>
+                <SidebarMenuButton size="default" isActive={currentPath === item.href}>
+                  {#snippet child({ props })}
+                    <a {...props} href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </a>
+                  {/snippet}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            {/each}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    {/each}
   </SidebarContent>
   <SidebarFooter>
     <SidebarMenu>

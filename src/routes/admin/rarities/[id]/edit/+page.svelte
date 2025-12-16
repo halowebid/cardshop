@@ -2,15 +2,13 @@
   import Loader2Icon from "@lucide/svelte/icons/loader-circle"
   import SaveIcon from "@lucide/svelte/icons/save"
   import { goto } from "$app/navigation"
-  import CategorySelector from "$lib/components/admin/category-selector.svelte"
+  import { page } from "$app/stores"
   import FormSidebar from "$lib/components/admin/form-sidebar.svelte"
   import ImageUpload from "$lib/components/admin/image-upload.svelte"
-  import RaritySelector from "$lib/components/admin/rarity-selector.svelte"
   import RichTextEditor from "$lib/components/admin/rich-text-editor.svelte"
   import SeoFields from "$lib/components/admin/seo-fields.svelte"
   import SlugInput from "$lib/components/admin/slug-input.svelte"
   import StatusSelector from "$lib/components/admin/status-selector.svelte"
-  import TagSelector from "$lib/components/admin/tag-selector.svelte"
   import VisibilityToggle from "$lib/components/admin/visibility-toggle.svelte"
   import {
     Breadcrumb,
@@ -24,44 +22,33 @@
   import { Input } from "$lib/components/ui/input"
   import { Label } from "$lib/components/ui/label"
   import { Separator } from "$lib/components/ui/separator"
-  import { useItem, useUpdateItem, type ItemInsert } from "$lib/queries/items"
+  import { useRarity, useUpdateRarity, type UpdateRarityInput } from "$lib/queries/rarities"
   import { toast } from "svelte-sonner"
 
-  type Props = {
-    data: { itemId: string }
-  }
+  const rarityId = $page.data.rarityId
+  const rarityQuery = useRarity(rarityId)
+  const updateMutation = useUpdateRarity()
 
-  let { data }: Props = $props()
-
-  const itemId = data.itemId
-  const itemQuery = useItem(itemId)
-  const updateMutation = useUpdateItem()
-
-  let formData = $state<ItemInsert | null>(null)
+  let formData = $state<UpdateRarityInput | null>(null)
   let lastSavedData = $state<string>("")
   let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null
   let isSaving = $state(false)
   let unsavedChanges = $state(false)
 
   $effect(() => {
-    if (itemQuery.data && !formData) {
-      const item = itemQuery.data
+    if (rarityQuery.data && !formData) {
+      const rarity = rarityQuery.data
       formData = {
-        name: item.name,
-        categoryIds: item.categoryIds ?? [],
-        price: item.price,
-        stockQty: item.stockQty,
-        setName: item.setName ?? null,
-        rarityId: item.rarityId ?? null,
-        imageUrl: item.imageUrl ?? null,
-        description: item.description ?? null,
-        slug: item.slug ?? "",
-        status: item.status,
-        visibility: item.visibility,
-        tagIds: item.tagIds ?? [],
-        metaTitle: item.metaTitle ?? "",
-        metaDescription: item.metaDescription ?? "",
-        uploadedImageId: item.uploadedImageId ?? "",
+        name: rarity.name,
+        slug: rarity.slug ?? "",
+        description: rarity.description,
+        color: rarity.color ?? "#9CA3AF",
+        imageUrl: rarity.imageUrl,
+        uploadedImageId: rarity.uploadedImageId ?? "",
+        status: rarity.status,
+        visibility: rarity.visibility,
+        metaTitle: rarity.metaTitle ?? "",
+        metaDescription: rarity.metaDescription ?? "",
       }
       lastSavedData = JSON.stringify(formData)
     }
@@ -92,7 +79,7 @@
 
     isSaving = true
     updateMutation.mutate(
-      { id: itemId, data: formData },
+      { id: rarityId, data: formData },
       {
         onSuccess: () => {
           lastSavedData = JSON.stringify(formData)
@@ -109,18 +96,18 @@
   function handlePublish() {
     if (!formData) return
 
-    const data: ItemInsert = {
+    const data: UpdateRarityInput = {
       ...formData,
       status: "active",
       visibility: true,
     }
 
     updateMutation.mutate(
-      { id: itemId, data },
+      { id: rarityId, data },
       {
         onSuccess: () => {
           unsavedChanges = false
-          goto("/admin/items")
+          goto("/admin/rarities")
         },
       },
     )
@@ -132,23 +119,23 @@
         return
       }
     }
-    goto("/admin/items")
+    goto("/admin/rarities")
   }
 </script>
 
 <svelte:head>
-  <title>Edit Item - Admin</title>
+  <title>Edit Rarity - Admin</title>
 </svelte:head>
 
-{#if itemQuery.isLoading || !formData}
+{#if rarityQuery.isLoading}
   <div class="flex h-screen items-center justify-center">
     <Loader2Icon class="h-8 w-8 animate-spin" />
   </div>
-{:else if itemQuery.error}
+{:else if rarityQuery.error}
   <div class="flex h-screen items-center justify-center">
-    <p class="text-destructive">Error loading item: {itemQuery.error.message}</p>
+    <p class="text-destructive">Error loading rarity: {rarityQuery.error.message}</p>
   </div>
-{:else}
+{:else if formData}
   <div class="container mx-auto py-6">
     <Breadcrumb class="mb-6">
       <BreadcrumbList>
@@ -157,18 +144,18 @@
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbLink href="/admin/items">Items</BreadcrumbLink>
+          <BreadcrumbLink href="/admin/rarities">Rarities</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbPage>Edit: {itemQuery.data?.name}</BreadcrumbPage>
+          <BreadcrumbPage>Edit: {rarityQuery.data?.name}</BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>
 
     <div class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold">Edit Item</h1>
+        <h1 class="text-3xl font-bold">Edit Rarity</h1>
         {#if isSaving}
           <p class="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2Icon class="h-3 w-3 animate-spin" />
@@ -206,7 +193,7 @@
               <Input
                 id="name"
                 bind:value={formData!.name}
-                placeholder="e.g., Pikachu VMAX"
+                placeholder="e.g., Common, Rare, Mythic"
                 required
               />
             </div>
@@ -214,53 +201,35 @@
             <SlugInput
               bind:value={formData!.slug}
               sourceText={formData!.name}
-              entityType="item"
-              excludeId={itemId}
+              entityType="rarity"
+              excludeId={rarityId}
               onchange={(slug) => (formData!.slug = slug)}
             />
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label for="setName">Set Name</Label>
+            <div class="space-y-2">
+              <Label for="color">Color</Label>
+              <div class="flex items-center gap-3">
                 <Input
-                  id="setName"
-                  bind:value={formData!.setName}
-                  placeholder="e.g., Vivid Voltage"
+                  id="color"
+                  type="color"
+                  bind:value={formData!.color}
+                  class="h-10 w-20 cursor-pointer"
                 />
-              </div>
-
-              <div class="space-y-2">
-                <RaritySelector
-                  bind:value={formData!.rarityId}
-                  onchange={(rarityId) => (formData!.rarityId = rarityId)}
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label for="price">Price *</Label>
                 <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  bind:value={formData!.price}
-                  placeholder="0.00"
-                  required
+                  type="text"
+                  bind:value={formData!.color}
+                  placeholder="#9CA3AF"
+                  pattern="^#[0-9A-Fa-f]{6}$"
+                  class="flex-1 font-mono"
                 />
+                <div
+                  class="h-10 w-10 rounded border"
+                  style="background-color: {formData!.color}"
+                ></div>
               </div>
-
-              <div class="space-y-2">
-                <Label for="stockQty">Stock Quantity</Label>
-                <Input
-                  id="stockQty"
-                  type="number"
-                  min="0"
-                  bind:value={formData!.stockQty}
-                  placeholder="0"
-                />
-              </div>
+              <p class="text-sm text-muted-foreground">
+                Choose a color to represent this rarity level
+              </p>
             </div>
           </div>
         </div>
@@ -304,20 +273,6 @@
           <VisibilityToggle
             bind:value={formData!.visibility}
             onchange={(visible) => (formData!.visibility = visible)}
-          />
-
-          <Separator />
-
-          <CategorySelector
-            bind:value={formData!.categoryIds}
-            onchange={(categoryIds) => (formData!.categoryIds = categoryIds)}
-          />
-
-          <Separator />
-
-          <TagSelector
-            bind:value={formData!.tagIds}
-            onchange={(tagIds) => (formData!.tagIds = tagIds)}
           />
         </FormSidebar>
       </div>

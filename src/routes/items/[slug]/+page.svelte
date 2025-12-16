@@ -22,18 +22,6 @@
     }).format(num)
   }
 
-  function getRarityVariant(rarity: string | null) {
-    if (!rarity) return "outline"
-
-    const r = rarity.toLowerCase()
-    if (r.includes("common")) return "secondary"
-    if (r.includes("uncommon")) return "default"
-    if (r.includes("rare")) return "default"
-    if (r.includes("mythic") || r.includes("legendary")) return "destructive"
-
-    return "outline"
-  }
-
   async function addToCart() {
     addingToCart = true
     try {
@@ -128,10 +116,19 @@
           </Badge>
         {/each}
         {#if data.item.rarity}
-          <Badge variant={getRarityVariant(data.item.rarity)} class="text-sm">
-            {data.item.rarity}
+          <Badge
+            variant="outline"
+            class="border-2 text-sm font-semibold"
+            style="border-color: {data.item.rarity.color}; color: {data.item.rarity.color};"
+          >
+            {data.item.rarity.name}
           </Badge>
         {/if}
+        {#each data.item.tags ?? [] as tag (tag.id)}
+          <Badge variant="secondary" class="text-sm">
+            {tag.name}
+          </Badge>
+        {/each}
       </div>
 
       <Separator />
@@ -208,8 +205,13 @@
                 <div class="flex items-baseline justify-between">
                   <p class="text-lg font-bold">{formatCurrency(relatedItem.price)}</p>
                   {#if relatedItem.rarity}
-                    <Badge variant={getRarityVariant(relatedItem.rarity)} class="text-xs">
-                      {relatedItem.rarity}
+                    <Badge
+                      variant="outline"
+                      class="border text-xs font-semibold"
+                      style="border-color: {relatedItem.rarity.color}; color: {relatedItem.rarity
+                        .color};"
+                    >
+                      {relatedItem.rarity.name}
                     </Badge>
                   {/if}
                 </div>

@@ -1,7 +1,7 @@
 import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
-import { category, item, itemCategory } from "$lib/server/db/schema"
+import { category, item, itemCategory, itemTag, rarity, tag } from "$lib/server/db/schema"
 import { buildPaginationMeta, parsePaginationParams } from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
@@ -16,12 +16,12 @@ export const GET: RequestHandler = async ({ url, request }) => {
 
     const { page, limit } = parsePaginationParams(url)
     const setName = url.searchParams.get("set")
-    const rarity = url.searchParams.get("rarity")
+    const rarityId = url.searchParams.get("rarity_id")
     const categoryId = url.searchParams.get("category_id")
 
     const conditions = []
     if (setName) conditions.push(eq(item.setName, setName))
-    if (rarity) conditions.push(eq(item.rarity, rarity))
+    if (rarityId) conditions.push(eq(item.rarityId, rarityId))
 
     // Filter by status and visibility for non-admin users
     if (!isAdmin) {
@@ -53,14 +53,13 @@ export const GET: RequestHandler = async ({ url, request }) => {
           name: item.name,
           slug: item.slug,
           setName: item.setName,
-          rarity: item.rarity,
+          rarityId: item.rarityId,
           price: item.price,
           imageUrl: item.imageUrl,
           description: item.description,
           stockQty: item.stockQty,
           status: item.status,
           visibility: item.visibility,
-          tags: item.tags,
           metaTitle: item.metaTitle,
           metaDescription: item.metaDescription,
           uploadedImageId: item.uploadedImageId,
@@ -118,6 +117,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
       return json({ data: [], meta })
     }
 
+    // Fetch categories for items
     const categoriesData = await db
       .select({
         itemId: itemCategory.itemId,
@@ -146,10 +146,45 @@ export const GET: RequestHandler = async ({ url, request }) => {
       })
     }
 
+    // Fetch rarity data for items
+    const rarityIds = items.map((i) => i.rarityId).filter((id): id is string => id !== null)
+    const raritiesData =
+      rarityIds.length > 0
+        ? await db.select().from(rarity).where(inArray(rarity.id, rarityIds))
+        : []
+    const rarityMap = new Map(raritiesData.map((r) => [r.id, r]))
+
+    // Fetch tags for items
+    const tagsData = await db
+      .select({
+        itemId: itemTag.itemId,
+        tagId: tag.id,
+        tagName: tag.name,
+        tagSlug: tag.slug,
+        tagColor: tag.description,
+      })
+      .from(itemTag)
+      .innerJoin(tag, eq(itemTag.tagId, tag.id))
+      .where(inArray(itemTag.itemId, itemIds))
+
+    const tagMap = new Map<string, Array<{ id: string; name: string; slug: string | null }>>()
+    for (const row of tagsData) {
+      if (!tagMap.has(row.itemId)) {
+        tagMap.set(row.itemId, [])
+      }
+      tagMap.get(row.itemId)!.push({
+        id: row.tagId,
+        name: row.tagName,
+        slug: row.tagSlug,
+      })
+    }
+
     const result = items.map((itemData) => ({
       ...itemData,
       categoryIds: categoryMap.get(itemData.id)?.map((c) => c.id) ?? [],
       categories: categoryMap.get(itemData.id) ?? [],
+      rarity: itemData.rarityId ? (rarityMap.get(itemData.rarityId) ?? null) : null,
+      tags: tagMap.get(itemData.id) ?? [],
     }))
 
     const meta = buildPaginationMeta(page, limit, total)
@@ -176,7 +211,7 @@ export const POST: RequestHandler = async ({ request }) => {
       categoryIds,
       name,
       setName,
-      rarity,
+      rarityId,
       price,
       imageUrl,
       description,
@@ -184,7 +219,7 @@ export const POST: RequestHandler = async ({ request }) => {
       slug,
       status,
       visibility,
-      tags,
+      tagIds,
       metaTitle,
       metaDescription,
       uploadedImageId,
@@ -212,6 +247,22 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ error: "One or more categories not found" }, { status: 404 })
     }
 
+    // Validate rarity if provided
+    if (rarityId) {
+      const [rarityExists] = await db.select().from(rarity).where(eq(rarity.id, rarityId)).limit(1)
+      if (!rarityExists) {
+        return json({ error: "Rarity not found" }, { status: 404 })
+      }
+    }
+
+    // Validate tags if provided
+    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+      const tagsExist = await db.select().from(tag).where(inArray(tag.id, tagIds))
+      if (tagsExist.length !== tagIds.length) {
+        return json({ error: "One or more tags not found" }, { status: 404 })
+      }
+    }
+
     const itemSlug = slug || (await generateUniqueSlug(name, "item"))
 
     // Sanitize HTML description if provided
@@ -230,20 +281,20 @@ export const POST: RequestHandler = async ({ request }) => {
         name,
         slug: itemSlug,
         setName: setName || null,
-        rarity: rarity || null,
+        rarityId: rarityId || null,
         price: price.toString(),
         imageUrl: imageUrl || null,
         description: sanitizedDescription,
         stockQty: stockQty !== undefined ? stockQty : 0,
         status: status || "draft",
         visibility: visibility !== undefined ? visibility : false,
-        tags: tags || null,
         metaTitle: metaTitle || null,
         metaDescription: metaDescription || null,
         uploadedImageId: uploadedImageId || null,
       })
       .returning()
 
+    // Insert category associations
     await db.insert(itemCategory).values(
       categoryIds.map((catId: string) => ({
         itemId: newItem.id,
@@ -251,7 +302,35 @@ export const POST: RequestHandler = async ({ request }) => {
       })),
     )
 
-    return json({ ...newItem, categoryIds, categories: categoriesExist }, { status: 201 })
+    // Insert tag associations
+    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+      await db.insert(itemTag).values(
+        tagIds.map((tId: string) => ({
+          itemId: newItem.id,
+          tagId: tId,
+        })),
+      )
+    }
+
+    // Fetch rarity data
+    const rarityData = newItem.rarityId
+      ? await db.select().from(rarity).where(eq(rarity.id, newItem.rarityId)).limit(1)
+      : []
+
+    // Fetch tag data
+    const tagsData =
+      tagIds && tagIds.length > 0 ? await db.select().from(tag).where(inArray(tag.id, tagIds)) : []
+
+    return json(
+      {
+        ...newItem,
+        categoryIds,
+        categories: categoriesExist,
+        rarity: rarityData[0] ?? null,
+        tags: tagsData,
+      },
+      { status: 201 },
+    )
   } catch (error) {
     console.error("Error creating item:", error)
     return json({ error: "Failed to create item" }, { status: 500 })

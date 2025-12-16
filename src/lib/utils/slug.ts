@@ -1,7 +1,7 @@
 /* eslint-disable no-useless-escape */
 
 import { db } from "$lib/server/db"
-import { category, item } from "$lib/server/db/schema/shop"
+import { category, item, rarity, tag } from "$lib/server/db/schema/shop"
 import { count, eq, sql } from "drizzle-orm"
 import { transliterate as tr } from "transliteration"
 
@@ -117,14 +117,14 @@ export function isUUID(value: string): boolean {
 }
 
 /**
- * Generates a unique slug for items or categories
+ * Generates a unique slug for items, categories, rarities, or tags
  *
  * Takes input text, converts to URL-safe slug format, and ensures uniqueness
  * by appending -2, -3, etc. if slug already exists. Excludes current record
- * when updating existing items/categories.
+ * when updating existing items/categories/rarities/tags.
  *
  * @param text - Text to convert to slug
- * @param tableName - Database table ('item' or 'category')
+ * @param tableName - Database table ('item', 'category', 'rarity', or 'tag')
  * @param excludeId - Optional ID to exclude from uniqueness check (for updates)
  * @returns Promise resolving to unique slug string
  * @example
@@ -133,11 +133,18 @@ export function isUUID(value: string): boolean {
  */
 export async function generateUniqueSlug(
   text: string,
-  tableName: "item" | "category",
+  tableName: "item" | "category" | "rarity" | "tag",
   excludeId?: string,
 ): Promise<string> {
   const baseSlug = slugify(text)
-  const table = tableName === "item" ? item : category
+  const table =
+    tableName === "item"
+      ? item
+      : tableName === "category"
+        ? category
+        : tableName === "rarity"
+          ? rarity
+          : tag
   let slug = baseSlug
   let counter = 2
 

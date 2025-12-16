@@ -10,15 +10,19 @@ export const load: PageServerLoad = async ({ params }) => {
   const { slug } = params
   const isId = isUUID(slug)
 
-  const [itemResult] = await db
-    .select()
-    .from(item)
-    .where(
-      isId
-        ? and(eq(item.id, slug), eq(item.status, "active"), eq(item.visibility, true))
-        : and(eq(item.slug, slug), eq(item.status, "active"), eq(item.visibility, true)),
-    )
-    .limit(1)
+  const itemResult = await db.query.item.findFirst({
+    where: isId
+      ? and(eq(item.id, slug), eq(item.status, "active"), eq(item.visibility, true))
+      : and(eq(item.slug, slug), eq(item.status, "active"), eq(item.visibility, true)),
+    with: {
+      rarity: true,
+      itemTags: {
+        with: {
+          tag: true,
+        },
+      },
+    },
+  })
 
   if (!itemResult) {
     throw error(404, "Item not found")
@@ -64,22 +68,25 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const relatedItems =
     uniqueRelatedItemIds.length > 0
-      ? await db
-          .select()
-          .from(item)
-          .where(
-            and(
-              inArray(item.id, uniqueRelatedItemIds),
-              gt(item.stockQty, 0),
-              eq(item.status, "active"),
-              eq(item.visibility, true),
-            ),
-          )
-          .limit(8)
+      ? await db.query.item.findMany({
+          where: and(
+            inArray(item.id, uniqueRelatedItemIds),
+            gt(item.stockQty, 0),
+            eq(item.status, "active"),
+            eq(item.visibility, true),
+          ),
+          limit: 8,
+          with: {
+            rarity: true,
+          },
+        })
       : []
 
   return {
-    item: itemResult,
+    item: {
+      ...itemResult,
+      tags: itemResult.itemTags.map((it) => it.tag),
+    },
     categories,
     relatedItems,
   }

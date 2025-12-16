@@ -50,7 +50,8 @@
         (item) =>
           item.name.toLowerCase().includes(query) ||
           item.setName?.toLowerCase().includes(query) ||
-          item.rarity?.toLowerCase().includes(query),
+          item.rarity?.name?.toLowerCase().includes(query) ||
+          item.tags?.some((tag) => tag.name.toLowerCase().includes(query)),
       )
     }
 
@@ -88,18 +89,6 @@
       style: "currency",
       currency: "USD",
     }).format(num)
-  }
-
-  function getRarityVariant(rarity: string | null) {
-    if (!rarity) return "outline"
-
-    const r = rarity.toLowerCase()
-    if (r.includes("common")) return "secondary"
-    if (r.includes("uncommon")) return "default"
-    if (r.includes("rare")) return "default"
-    if (r.includes("mythic") || r.includes("legendary")) return "destructive"
-
-    return "outline"
   }
 
   function getCategoryName(categoryId: string) {
@@ -252,10 +241,19 @@
                     </a>
                   {/each}
                   {#if item.rarity}
-                    <Badge variant={getRarityVariant(item.rarity)} class="text-xs">
-                      {item.rarity}
+                    <Badge
+                      variant="outline"
+                      class="border text-xs font-semibold"
+                      style="border-color: {item.rarity.color}; color: {item.rarity.color};"
+                    >
+                      {item.rarity.name}
                     </Badge>
                   {/if}
+                  {#each item.tags ?? [] as tag (tag.id)}
+                    <Badge variant="secondary" class="text-xs">
+                      {tag.name}
+                    </Badge>
+                  {/each}
                 </div>
                 <div class="flex items-baseline justify-between">
                   <p class="text-2xl font-bold">{formatCurrency(item.price)}</p>
