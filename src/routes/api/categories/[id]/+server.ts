@@ -4,6 +4,7 @@ import { db } from "$lib/server/db"
 import { category, itemCategory } from "$lib/server/db/schema"
 import { generateUniqueSlug, isUUID } from "$lib/utils/slug"
 import { eq, sql } from "drizzle-orm"
+import sanitizeHtml from "sanitize-html"
 
 import type { RequestHandler } from "./$types"
 
@@ -19,6 +20,11 @@ export const GET: RequestHandler = async ({ params }) => {
         slug: category.slug,
         imageUrl: category.imageUrl,
         description: category.description,
+        status: category.status,
+        visibility: category.visibility,
+        metaTitle: category.metaTitle,
+        metaDescription: category.metaDescription,
+        uploadedImageId: category.uploadedImageId,
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
         itemCount: sql<number>`cast(count(${itemCategory.itemId}) as integer)`,
@@ -50,7 +56,17 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
     }
 
     const body = await request.json()
-    const { title, slug: providedSlug, imageUrl, description } = body
+    const {
+      title,
+      slug: providedSlug,
+      imageUrl,
+      description,
+      status,
+      visibility,
+      metaTitle,
+      metaDescription,
+      uploadedImageId,
+    } = body
 
     if (title) {
       const existing = await db.select().from(category).where(eq(category.title, title)).limit(1)
@@ -60,7 +76,14 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
       }
     }
 
-    if (providedSlug) {
+    const updateData: Record<string, string | null | boolean> = {}
+    if (title !== undefined) {
+      updateData.title = title
+      if (!providedSlug) {
+        updateData.slug = await generateUniqueSlug(title, "category", params.id)
+      }
+    }
+    if (providedSlug !== undefined) {
       const existingSlug = await db
         .select()
         .from(category)
@@ -68,20 +91,27 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
         .limit(1)
 
       if (existingSlug.length > 0 && existingSlug[0].id !== params.id) {
-        return json({ error: "Category with this slug already exists" }, { status: 409 })
+        updateData.slug = await generateUniqueSlug(providedSlug, "category", params.id)
+      } else {
+        updateData.slug = providedSlug
       }
     }
-
-    const updateData: Record<string, string | null> = {}
-    if (title !== undefined) {
-      updateData.title = title
-      if (!providedSlug) {
-        updateData.slug = await generateUniqueSlug(title, "category", params.id)
-      }
-    }
-    if (providedSlug !== undefined) updateData.slug = providedSlug
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl
-    if (description !== undefined) updateData.description = description
+    if (description !== undefined) {
+      updateData.description = description
+        ? sanitizeHtml(description, {
+            allowedTags: ["p", "br", "strong", "em", "a", "ul", "ol", "li", "h2", "h3"],
+            allowedAttributes: {
+              a: ["href", "target", "rel"],
+            },
+          })
+        : null
+    }
+    if (status !== undefined) updateData.status = status
+    if (visibility !== undefined) updateData.visibility = visibility
+    if (metaTitle !== undefined) updateData.metaTitle = metaTitle
+    if (metaDescription !== undefined) updateData.metaDescription = metaDescription
+    if (uploadedImageId !== undefined) updateData.uploadedImageId = uploadedImageId
 
     const [updated] = await db
       .update(category)

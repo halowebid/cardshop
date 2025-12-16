@@ -8,6 +8,7 @@
   import { Empty, EmptyDescription, EmptyTitle } from "$lib/components/ui/empty"
   import { Skeleton } from "$lib/components/ui/skeleton"
   import { useItemsInfinite } from "$lib/queries/items"
+  import Seo from "sk-seo"
   import { toast } from "svelte-sonner"
 
   let { data } = $props()
@@ -113,6 +114,12 @@
     }
   }
 </script>
+
+<Seo
+  title={data.category.metaTitle ?? `${data.category.title} - CardShop`}
+  description={data.category.metaDescription ??
+    `Browse ${data.category.title} trading cards. ${data.category.description ? data.category.description.replace(/<[^>]*>/g, "").slice(0, 150) : "Find the perfect cards for your collection."}`}
+/>
 
 <div class="container mx-auto space-y-8 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   <div>

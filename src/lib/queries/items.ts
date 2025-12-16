@@ -7,6 +7,8 @@ import {
 import type { PaginatedResponse } from "$lib/types/pagination"
 import { toast } from "svelte-sonner"
 
+import type { Status } from "./categories"
+
 export type Item = {
   id: string
   categoryIds: string[]
@@ -18,6 +20,12 @@ export type Item = {
   imageUrl: string | null
   description: string | null
   stockQty: number
+  status: Status
+  visibility: boolean
+  tags: string[] | null
+  metaTitle: string | null
+  metaDescription: string | null
+  uploadedImageId: string | null
   createdAt: Date
   updatedAt: Date
   categories?: Array<{
@@ -39,6 +47,12 @@ export type ItemInsert = {
   imageUrl?: string | null
   description?: string | null
   stockQty?: number
+  status?: Status
+  visibility?: boolean
+  tags?: string[]
+  metaTitle?: string
+  metaDescription?: string
+  uploadedImageId?: string
 }
 
 export type ItemFilters = {

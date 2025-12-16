@@ -1,12 +1,19 @@
 import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query"
 import type { PaginatedResponse } from "$lib/types/pagination"
 
+export type Status = "draft" | "active" | "archived"
+
 export type Category = {
   id: string
   title: string
   slug: string | null
   imageUrl: string | null
   description: string | null
+  status: Status
+  visibility: boolean
+  metaTitle: string | null
+  metaDescription: string | null
+  uploadedImageId: string | null
   createdAt: Date
   updatedAt: Date
   itemCount?: number
@@ -62,6 +69,11 @@ export type CreateCategoryInput = {
   slug?: string
   imageUrl?: string | null
   description?: string | null
+  status?: Status
+  visibility?: boolean
+  metaTitle?: string
+  metaDescription?: string
+  uploadedImageId?: string
 }
 
 export type UpdateCategoryInput = Partial<CreateCategoryInput>

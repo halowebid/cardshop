@@ -13,7 +13,11 @@ export const load: PageServerLoad = async ({ params }) => {
   const [itemResult] = await db
     .select()
     .from(item)
-    .where(isId ? eq(item.id, slug) : eq(item.slug, slug))
+    .where(
+      isId
+        ? and(eq(item.id, slug), eq(item.status, "active"), eq(item.visibility, true))
+        : and(eq(item.slug, slug), eq(item.status, "active"), eq(item.visibility, true)),
+    )
     .limit(1)
 
   if (!itemResult) {
@@ -55,7 +59,7 @@ export const load: PageServerLoad = async ({ params }) => {
       : []
 
   const uniqueRelatedItemIds = [...new Set(relatedItemIds.map((r) => r.itemId))].filter(
-    (itemId) => itemId !== itemId,
+    (id) => id !== itemId,
   )
 
   const relatedItems =
@@ -63,7 +67,14 @@ export const load: PageServerLoad = async ({ params }) => {
       ? await db
           .select()
           .from(item)
-          .where(and(inArray(item.id, uniqueRelatedItemIds), gt(item.stockQty, 0)))
+          .where(
+            and(
+              inArray(item.id, uniqueRelatedItemIds),
+              gt(item.stockQty, 0),
+              eq(item.status, "active"),
+              eq(item.visibility, true),
+            ),
+          )
           .limit(8)
       : []
 

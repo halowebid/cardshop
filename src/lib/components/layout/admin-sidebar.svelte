@@ -133,17 +133,17 @@
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger class="w-full">
-            <SidebarMenuButton size="lg">
-              <Avatar class="size-8 rounded-lg">
-                <AvatarFallback class="rounded-lg">{userInitials}</AvatarFallback>
-              </Avatar>
-              <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-semibold">{user.name || "Admin"}</span>
-                <span class="truncate text-xs">{user.email}</span>
-              </div>
-              <ChevronUpIcon class="ml-auto size-4" />
-            </SidebarMenuButton>
+          <DropdownMenuTrigger
+            class="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Avatar class="size-8 rounded-lg">
+              <AvatarFallback class="rounded-lg">{userInitials}</AvatarFallback>
+            </Avatar>
+            <div class="grid flex-1 text-left text-sm leading-tight">
+              <span class="truncate font-semibold">{user.name || "Admin"}</span>
+              <span class="truncate text-xs">{user.email}</span>
+            </div>
+            <ChevronUpIcon class="ml-auto size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent class="w-[--radix-dropdown-menu-trigger-width] min-w-56" side="top">
             <DropdownMenuItem>

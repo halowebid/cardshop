@@ -9,11 +9,15 @@ import {
 } from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm"
+import sanitizeHtml from "sanitize-html"
 
 import type { RequestHandler } from "./$types"
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
   try {
+    const session = await auth.api.getSession({ headers: request.headers })
+    const isAdmin = session?.user?.role === "admin"
+
     const { page, limit } = parsePaginationParams(url)
     const setName = url.searchParams.get("set")
     const rarity = url.searchParams.get("rarity")
@@ -22,6 +26,12 @@ export const GET: RequestHandler = async ({ url }) => {
     const conditions = []
     if (setName) conditions.push(eq(item.setName, setName))
     if (rarity) conditions.push(eq(item.rarity, rarity))
+
+    // Filter by status and visibility for non-admin users
+    if (!isAdmin) {
+      conditions.push(eq(item.status, "active"))
+      conditions.push(eq(item.visibility, true))
+    }
 
     let items
     let total = 0
@@ -52,6 +62,12 @@ export const GET: RequestHandler = async ({ url }) => {
           imageUrl: item.imageUrl,
           description: item.description,
           stockQty: item.stockQty,
+          status: item.status,
+          visibility: item.visibility,
+          tags: item.tags,
+          metaTitle: item.metaTitle,
+          metaDescription: item.metaDescription,
+          uploadedImageId: item.uploadedImageId,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
         })
@@ -160,8 +176,23 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const body = await request.json()
-    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty, slug } =
-      body
+    const {
+      categoryIds,
+      name,
+      setName,
+      rarity,
+      price,
+      imageUrl,
+      description,
+      stockQty,
+      slug,
+      status,
+      visibility,
+      tags,
+      metaTitle,
+      metaDescription,
+      uploadedImageId,
+    } = body
 
     if (
       !categoryIds ||
@@ -187,6 +218,16 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const itemSlug = slug || (await generateUniqueSlug(name, "item"))
 
+    // Sanitize HTML description if provided
+    const sanitizedDescription = description
+      ? sanitizeHtml(description, {
+          allowedTags: ["p", "br", "strong", "em", "a", "ul", "ol", "li", "h2", "h3"],
+          allowedAttributes: {
+            a: ["href", "target", "rel"],
+          },
+        })
+      : null
+
     const [newItem] = await db
       .insert(item)
       .values({
@@ -196,8 +237,14 @@ export const POST: RequestHandler = async ({ request }) => {
         rarity: rarity || null,
         price: price.toString(),
         imageUrl: imageUrl || null,
-        description: description || null,
+        description: sanitizedDescription,
         stockQty: stockQty !== undefined ? stockQty : 0,
+        status: status || "draft",
+        visibility: visibility !== undefined ? visibility : false,
+        tags: tags || null,
+        metaTitle: metaTitle || null,
+        metaDescription: metaDescription || null,
+        uploadedImageId: uploadedImageId || null,
       })
       .returning()
 

@@ -1,4 +1,13 @@
-import { index, integer, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 
 import { user } from "./auth"
 
@@ -12,6 +21,11 @@ export const category = pgTable(
     slug: text("slug").notNull().unique(),
     imageUrl: text("image_url"),
     description: text("description"),
+    status: text("status").notNull().default("active"),
+    visibility: boolean("visibility").notNull().default(true),
+    metaTitle: text("meta_title"),
+    metaDescription: text("meta_description"),
+    uploadedImageId: text("uploaded_image_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -39,6 +53,12 @@ export const item = pgTable(
     imageUrl: text("image_url"),
     description: text("description"),
     stockQty: integer("stock_qty").default(0).notNull(),
+    status: text("status").notNull().default("active"),
+    visibility: boolean("visibility").notNull().default(true),
+    tags: text("tags").array(),
+    metaTitle: text("meta_title"),
+    metaDescription: text("meta_description"),
+    uploadedImageId: text("uploaded_image_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

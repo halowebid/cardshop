@@ -8,25 +8,54 @@ import {
   type PaginatedResponse,
 } from "$lib/types/pagination"
 import { generateUniqueSlug } from "$lib/utils/slug"
-import { desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
+import sanitizeHtml from "sanitize-html"
 
 import type { RequestHandler } from "./$types"
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
   try {
+    const session = await auth.api.getSession({ headers: request.headers })
+    const isAdmin = session?.user?.role === "admin"
+
     const { page, limit } = parsePaginationParams(url)
 
+    // Build conditions
+    const conditions = []
+    if (!isAdmin) {
+      conditions.push(eq(category.status, "active"))
+      conditions.push(eq(category.visibility, true))
+    }
+
     // Count total categories
-    const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(category)
+    const countQuery =
+      conditions.length > 0
+        ? db
+            .select({ count: sql<number>`count(*)` })
+            .from(category)
+            .where(and(...conditions))
+        : db.select({ count: sql<number>`count(*)` }).from(category)
+    const [countResult] = await countQuery
     const total = Number(countResult.count)
 
     // Fetch paginated categories
-    const categories = await db
-      .select()
-      .from(category)
-      .orderBy(desc(category.updatedAt))
-      .limit(limit)
-      .offset((page - 1) * limit)
+    const categoriesQuery =
+      conditions.length > 0
+        ? db
+            .select()
+            .from(category)
+            .where(and(...conditions))
+            .orderBy(desc(category.updatedAt))
+            .limit(limit)
+            .offset((page - 1) * limit)
+        : db
+            .select()
+            .from(category)
+            .orderBy(desc(category.updatedAt))
+            .limit(limit)
+            .offset((page - 1) * limit)
+
+    const categories = await categoriesQuery
 
     const meta = buildPaginationMeta(page, limit, total)
 
@@ -48,7 +77,17 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const body = await request.json()
-    const { title, slug: providedSlug, imageUrl, description } = body
+    const {
+      title,
+      slug: providedSlug,
+      imageUrl,
+      description,
+      status,
+      visibility,
+      metaTitle,
+      metaDescription,
+      uploadedImageId,
+    } = body
 
     if (!title) {
       return json({ error: "Title is required" }, { status: 400 })
@@ -74,13 +113,28 @@ export const POST: RequestHandler = async ({ request }) => {
       }
     }
 
+    // Sanitize HTML description if provided
+    const sanitizedDescription = description
+      ? sanitizeHtml(description, {
+          allowedTags: ["p", "br", "strong", "em", "a", "ul", "ol", "li", "h2", "h3"],
+          allowedAttributes: {
+            a: ["href", "target", "rel"],
+          },
+        })
+      : null
+
     const [newCategory] = await db
       .insert(category)
       .values({
         title,
         slug,
         imageUrl: imageUrl || null,
-        description: description || null,
+        description: sanitizedDescription,
+        status: status || "draft",
+        visibility: visibility !== undefined ? visibility : false,
+        metaTitle: metaTitle || null,
+        metaDescription: metaDescription || null,
+        uploadedImageId: uploadedImageId || null,
       })
       .returning()
 

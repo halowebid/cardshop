@@ -7,6 +7,7 @@
   import { Button } from "$lib/components/ui/button"
   import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card"
   import { Separator } from "$lib/components/ui/separator"
+  import Seo from "sk-seo"
   import { toast } from "svelte-sonner"
 
   let { data } = $props()
@@ -78,6 +79,12 @@
     }
   }
 </script>
+
+<Seo
+  title={data.item.metaTitle ?? `${data.item.name} - CardShop`}
+  description={data.item.metaDescription ??
+    `Buy ${data.item.name} for ${data.item.price}. ${data.item.setName ? `From ${data.item.setName}.` : ""} ${data.item.stockQty > 0 ? "In stock now!" : "Out of stock."}`}
+/>
 
 <div class="container mx-auto space-y-8 px-4 py-6 md:px-6 md:py-8 lg:px-8 xl:px-12">
   <!-- Back to Shop Button -->

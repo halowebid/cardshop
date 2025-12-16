@@ -1,16 +1,10 @@
 <script lang="ts">
+  import PencilIcon from "@lucide/svelte/icons/pencil"
+  import PlusIcon from "@lucide/svelte/icons/plus"
+  import Trash2Icon from "@lucide/svelte/icons/trash-2"
+  import { goto } from "$app/navigation"
+  import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
-  import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-  } from "$lib/components/ui/dialog"
-  import { Input } from "$lib/components/ui/input"
-  import { Label } from "$lib/components/ui/label"
   import {
     Pagination,
     PaginationContent,
@@ -25,284 +19,156 @@
     TableHeader,
     TableRow,
   } from "$lib/components/ui/table"
-  import { Textarea } from "$lib/components/ui/textarea"
-  import {
-    useCategories,
-    useCreateCategory,
-    useDeleteCategory,
-    useUpdateCategory,
-    type Category,
-  } from "$lib/queries/categories"
-  import { toast } from "svelte-sonner"
+  import { useCategories, useDeleteCategory } from "$lib/queries/categories"
 
   let currentPage = $state(1)
   const ITEMS_PER_PAGE = 20
 
   const categoriesQuery = useCategories(() => currentPage, ITEMS_PER_PAGE)
-  const createMutation = useCreateCategory()
-  const updateMutation = useUpdateCategory()
   const deleteMutation = useDeleteCategory()
 
-  let dialogOpen = $state(false)
-  let editDialogOpen = $state(false)
-  let deleteDialogOpen = $state(false)
-  let selectedCategory = $state<Category | null>(null)
-
-  let formData = $state({
-    title: "",
-    slug: "",
-    imageUrl: "",
-    description: "",
-  })
-
-  function resetForm() {
-    formData = { title: "", slug: "", imageUrl: "", description: "" }
+  function handleEdit(categoryId: string) {
+    goto(`/admin/categories/${categoryId}/edit`)
   }
 
-  async function handleCreate() {
-    try {
-      await createMutation.mutateAsync({
-        title: formData.title,
-        slug: formData.slug || undefined,
-        imageUrl: formData.imageUrl || null,
-        description: formData.description || null,
-      })
-      toast.success("Category created successfully")
-      dialogOpen = false
-      resetForm()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create category")
+  function handleDelete(categoryId: string, categoryTitle: string) {
+    if (confirm(`Are you sure you want to delete "${categoryTitle}"?`)) {
+      deleteMutation.mutate(categoryId)
     }
   }
 
-  async function handleEdit() {
-    if (!selectedCategory) return
-
-    try {
-      await updateMutation.mutateAsync({
-        id: selectedCategory.id,
-        data: {
-          title: formData.title,
-          slug: formData.slug || undefined,
-          imageUrl: formData.imageUrl || null,
-          description: formData.description || null,
-        },
-      })
-      toast.success("Category updated successfully")
-      editDialogOpen = false
-      selectedCategory = null
-      resetForm()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update category")
+  function getStatusBadgeVariant(status: string) {
+    switch (status) {
+      case "active":
+        return "default"
+      case "draft":
+        return "secondary"
+      case "archived":
+        return "outline"
+      default:
+        return "secondary"
     }
-  }
-
-  async function handleDelete() {
-    if (!selectedCategory) return
-
-    try {
-      await deleteMutation.mutateAsync(selectedCategory.id)
-      toast.success("Category deleted successfully")
-      deleteDialogOpen = false
-      selectedCategory = null
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete category")
-    }
-  }
-
-  function openEditDialog(category: Category) {
-    selectedCategory = category
-    formData = {
-      title: category.title,
-      slug: category.slug || "",
-      imageUrl: category.imageUrl || "",
-      description: category.description || "",
-    }
-    editDialogOpen = true
-  }
-
-  function openDeleteDialog(category: Category) {
-    selectedCategory = category
-    deleteDialogOpen = true
   }
 </script>
 
-<div class="flex items-center justify-between">
-  <h2 class="text-2xl font-bold">Categories</h2>
-  <Dialog bind:open={dialogOpen}>
-    <DialogTrigger>
-      <Button>Add Category</Button>
-    </DialogTrigger>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Create Category</DialogTitle>
-        <DialogDescription>Add a new product category</DialogDescription>
-      </DialogHeader>
-      <div class="grid gap-4 py-4">
-        <div class="grid gap-2">
-          <Label for="title">Title</Label>
-          <Input id="title" bind:value={formData.title} required />
-        </div>
-        <div class="grid gap-2">
-          <Label for="slug">Slug</Label>
-          <Input
-            id="slug"
-            bind:value={formData.slug}
-            placeholder="Optional - auto-generated from title if empty"
-          />
-        </div>
-        <div class="grid gap-2">
-          <Label for="imageUrl">Image URL</Label>
-          <Input id="imageUrl" bind:value={formData.imageUrl} />
-        </div>
-        <div class="grid gap-2">
-          <Label for="description">Description</Label>
-          <Textarea id="description" bind:value={formData.description} />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onclick={() => (dialogOpen = false)}>Cancel</Button>
-        <Button onclick={handleCreate} disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Creating..." : "Create"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</div>
+<svelte:head>
+  <title>Categories - Admin</title>
+</svelte:head>
 
-<div class="mt-4 rounded-md border">
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Title</TableHead>
-        <TableHead>Slug</TableHead>
-        <TableHead>Description</TableHead>
-        <TableHead>Items</TableHead>
-        <TableHead class="text-right">Actions</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {#if categoriesQuery.isLoading}
-        <TableRow>
-          <TableCell colspan={5} class="text-center">Loading categories...</TableCell>
-        </TableRow>
-      {:else if categoriesQuery.error}
-        <TableRow>
-          <TableCell colspan={5} class="text-center text-red-500">
-            Error: {categoriesQuery.error.message}
-          </TableCell>
-        </TableRow>
-      {:else if categoriesQuery.data?.data && categoriesQuery.data.data.length > 0}
-        {#each categoriesQuery.data.data as category (category.id)}
-          <TableRow>
-            <TableCell class="font-medium">{category.title}</TableCell>
-            <TableCell class="font-mono text-sm text-muted-foreground"
-              >{category.slug || "-"}</TableCell
-            >
-            <TableCell>{category.description || "-"}</TableCell>
-            <TableCell>{category.itemCount || 0}</TableCell>
-            <TableCell class="text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                onclick={() => openEditDialog(category)}
-                disabled={updateMutation.isPending}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onclick={() => openDeleteDialog(category)}
-                disabled={deleteMutation.isPending}
-              >
-                Delete
-              </Button>
-            </TableCell>
-          </TableRow>
-        {/each}
-      {:else}
-        <TableRow>
-          <TableCell colspan={5} class="text-center">No categories found</TableCell>
-        </TableRow>
-      {/if}
-    </TableBody>
-  </Table>
-</div>
-
-{#if categoriesQuery.data?.meta && categoriesQuery.data.meta.totalPages > 1}
-  <div class="mt-4 space-y-2">
-    <Pagination
-      count={categoriesQuery.data.meta.total}
-      perPage={ITEMS_PER_PAGE}
-      bind:page={currentPage}
-      siblingCount={1}
-    >
-      <PaginationContent>
-        <PaginationPrevButton />
-        <div class="mx-4 text-sm text-muted-foreground">
-          Page {currentPage} of {categoriesQuery.data.meta.totalPages} • Showing {(currentPage -
-            1) *
-            ITEMS_PER_PAGE +
-            1} to {Math.min(currentPage * ITEMS_PER_PAGE, categoriesQuery.data.meta.total)} of {categoriesQuery
-            .data.meta.total}
-        </div>
-        <PaginationNextButton />
-      </PaginationContent>
-    </Pagination>
-  </div>
-{/if}
-
-<Dialog bind:open={editDialogOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Edit Category</DialogTitle>
-      <DialogDescription>Update category details</DialogDescription>
-    </DialogHeader>
-    <div class="grid gap-4 py-4">
-      <div class="grid gap-2">
-        <Label for="edit-title">Title</Label>
-        <Input id="edit-title" bind:value={formData.title} required />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-slug">Slug</Label>
-        <Input
-          id="edit-slug"
-          bind:value={formData.slug}
-          placeholder="Optional - auto-generated from title if empty"
-        />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-imageUrl">Image URL</Label>
-        <Input id="edit-imageUrl" bind:value={formData.imageUrl} />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-description">Description</Label>
-        <Textarea id="edit-description" bind:value={formData.description} />
-      </div>
+<div class="container mx-auto py-8">
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold">Categories</h1>
+      <p class="text-muted-foreground">Organize your items into categories</p>
     </div>
-    <DialogFooter>
-      <Button variant="outline" onclick={() => (editDialogOpen = false)}>Cancel</Button>
-      <Button onclick={handleEdit} disabled={updateMutation.isPending}>
-        {updateMutation.isPending ? "Updating..." : "Update"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+    <Button onclick={() => goto("/admin/categories/new")}>
+      <PlusIcon class="mr-2 h-4 w-4" />
+      Add Category
+    </Button>
+  </div>
 
-<Dialog bind:open={deleteDialogOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Delete Category</DialogTitle>
-      <DialogDescription>
-        Are you sure you want to delete "{selectedCategory?.title}"? This action cannot be undone.
-      </DialogDescription>
-    </DialogHeader>
-    <DialogFooter>
-      <Button variant="outline" onclick={() => (deleteDialogOpen = false)}>Cancel</Button>
-      <Button variant="destructive" onclick={handleDelete} disabled={deleteMutation.isPending}>
-        {deleteMutation.isPending ? "Deleting..." : "Delete"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+  {#if categoriesQuery.isLoading}
+    <div class="flex justify-center py-8">
+      <p class="text-muted-foreground">Loading categories...</p>
+    </div>
+  {:else if categoriesQuery.error}
+    <div class="rounded-lg border border-destructive bg-destructive/10 p-4">
+      <p class="text-destructive">Error loading categories: {categoriesQuery.error.message}</p>
+    </div>
+  {:else if categoriesQuery.data}
+    <div class="rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead>Slug</TableHead>
+            <TableHead>Items</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Visibility</TableHead>
+            <TableHead class="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {#each categoriesQuery.data.data as category}
+            <TableRow>
+              <TableCell class="font-medium">
+                <div class="flex items-center gap-2">
+                  {#if category.imageUrl}
+                    <img
+                      src={category.imageUrl}
+                      alt={category.title}
+                      class="h-10 w-10 rounded object-cover"
+                    />
+                  {/if}
+                  {category.title}
+                </div>
+              </TableCell>
+              <TableCell class="font-mono text-sm text-muted-foreground">
+                {category.slug ?? "-"}
+              </TableCell>
+              <TableCell>{category.itemCount ?? 0}</TableCell>
+              <TableCell>
+                <Badge variant={getStatusBadgeVariant(category.status)}>
+                  {category.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {#if category.visibility}
+                  <Badge variant="default">Visible</Badge>
+                {:else}
+                  <Badge variant="outline">Hidden</Badge>
+                {/if}
+              </TableCell>
+              <TableCell class="text-right">
+                <div class="flex justify-end gap-2">
+                  <Button variant="ghost" size="icon" onclick={() => handleEdit(category.id)}>
+                    <PencilIcon class="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onclick={() => handleDelete(category.id, category.title)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2Icon class="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          {:else}
+            <TableRow>
+              <TableCell colspan={6} class="text-center text-muted-foreground">
+                No categories found. Create your first category to get started.
+              </TableCell>
+            </TableRow>
+          {/each}
+        </TableBody>
+      </Table>
+    </div>
+
+    {#if categoriesQuery.data.meta.totalPages > 1}
+      <div class="mt-4 flex items-center justify-between">
+        <p class="text-sm text-muted-foreground">
+          Page {categoriesQuery.data.meta.page} of {categoriesQuery.data.meta.totalPages}
+          ({categoriesQuery.data.meta.total} total categories)
+        </p>
+        <Pagination count={categoriesQuery.data.meta.totalPages} perPage={1}>
+          <PaginationContent>
+            <PaginationPrevButton
+              disabled={currentPage === 1}
+              onclick={() => {
+                if (currentPage > 1) currentPage--
+              }}
+            />
+            <PaginationNextButton
+              disabled={!categoriesQuery.data.meta.hasMore}
+              onclick={() => {
+                if (categoriesQuery.data.meta.hasMore) currentPage++
+              }}
+            />
+          </PaginationContent>
+        </Pagination>
+      </div>
+    {/if}
+  {/if}
+</div>

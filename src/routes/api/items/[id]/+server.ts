@@ -2,8 +2,9 @@ import { json } from "@sveltejs/kit"
 import { auth } from "$lib/auth"
 import { db } from "$lib/server/db"
 import { category, item, itemCategory } from "$lib/server/db/schema"
-import { isUUID } from "$lib/utils/slug"
+import { generateUniqueSlug, isUUID } from "$lib/utils/slug"
 import { eq, inArray } from "drizzle-orm"
+import sanitizeHtml from "sanitize-html"
 
 import type { RequestHandler } from "./$types"
 
@@ -57,8 +58,23 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     }
 
     const body = await request.json()
-    const { categoryIds, name, setName, rarity, price, imageUrl, description, stockQty, slug } =
-      body
+    const {
+      categoryIds,
+      name,
+      setName,
+      rarity,
+      price,
+      imageUrl,
+      description,
+      stockQty,
+      slug,
+      status,
+      visibility,
+      tags,
+      metaTitle,
+      metaDescription,
+      uploadedImageId,
+    } = body
 
     if (categoryIds !== undefined) {
       if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
@@ -92,16 +108,32 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
       }
       const existingSlug = await db.select().from(item).where(eq(item.slug, slug)).limit(1)
       if (existingSlug.length > 0 && existingSlug[0].id !== params.id) {
-        return json({ error: "Slug already exists" }, { status: 400 })
+        updateData.slug = await generateUniqueSlug(slug, "item", params.id)
+      } else {
+        updateData.slug = slug
       }
-      updateData.slug = slug
     }
     if (setName !== undefined) updateData.setName = setName || null
     if (rarity !== undefined) updateData.rarity = rarity || null
     if (price !== undefined) updateData.price = price.toString()
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null
-    if (description !== undefined) updateData.description = description || null
+    if (description !== undefined) {
+      updateData.description = description
+        ? sanitizeHtml(description, {
+            allowedTags: ["p", "br", "strong", "em", "a", "ul", "ol", "li", "h2", "h3"],
+            allowedAttributes: {
+              a: ["href", "target", "rel"],
+            },
+          })
+        : null
+    }
     if (stockQty !== undefined) updateData.stockQty = stockQty
+    if (status !== undefined) updateData.status = status
+    if (visibility !== undefined) updateData.visibility = visibility
+    if (tags !== undefined) updateData.tags = tags || null
+    if (metaTitle !== undefined) updateData.metaTitle = metaTitle || null
+    if (metaDescription !== undefined) updateData.metaDescription = metaDescription || null
+    if (uploadedImageId !== undefined) updateData.uploadedImageId = uploadedImageId || null
 
     if (Object.keys(updateData).length > 0) {
       const [updatedItem] = await db

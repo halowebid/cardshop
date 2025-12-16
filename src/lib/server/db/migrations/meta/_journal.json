@@ -43,6 +43,13 @@
       "when": 1763019279096,
       "tag": "0005_motionless_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765856125410,
+      "tag": "0006_elite_sage",
+      "breakpoints": true
     }
   ]
 }

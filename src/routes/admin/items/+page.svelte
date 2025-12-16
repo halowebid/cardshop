@@ -1,17 +1,10 @@
 <script lang="ts">
+  import PencilIcon from "@lucide/svelte/icons/pencil"
+  import PlusIcon from "@lucide/svelte/icons/plus"
+  import Trash2Icon from "@lucide/svelte/icons/trash-2"
+  import { goto } from "$app/navigation"
+  import { Badge } from "$lib/components/ui/badge"
   import { Button } from "$lib/components/ui/button"
-  import { Checkbox } from "$lib/components/ui/checkbox"
-  import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-  } from "$lib/components/ui/dialog"
-  import { Input } from "$lib/components/ui/input"
-  import { Label } from "$lib/components/ui/label"
   import {
     Pagination,
     PaginationContent,
@@ -26,563 +19,159 @@
     TableHeader,
     TableRow,
   } from "$lib/components/ui/table"
-  import { Textarea } from "$lib/components/ui/textarea"
-  import { useCategories, useCreateCategory } from "$lib/queries/categories"
-  import {
-    useCreateItem,
-    useDeleteItem,
-    useItemsPaginated,
-    useUpdateItem,
-  } from "$lib/queries/items"
+  import { useDeleteItem, useItemsPaginated } from "$lib/queries/items"
   import { toast } from "svelte-sonner"
 
   let currentPage = $state(1)
   const ITEMS_PER_PAGE = 20
 
-  // Queries - fetch on client only
   const itemsQuery = useItemsPaginated(() => currentPage, ITEMS_PER_PAGE)
-  const categoriesQuery = useCategories()
-
-  // Mutations
-  const createMutation = useCreateItem()
-  const updateMutation = useUpdateItem()
   const deleteMutation = useDeleteItem()
-  const createCategoryMutation = useCreateCategory()
 
-  interface ItemData {
-    id: string
-    categoryIds: string[]
-    name: string
-    slug: string | null
-    setName: string | null
-    rarity: string | null
-    price: string
-    imageUrl: string | null
-    description: string | null
-    stockQty: number
-    categories?: Array<{ id: string; title: string }> | null
+  function handleEdit(itemId: string) {
+    goto(`/admin/items/${itemId}/edit`)
   }
 
-  interface CategoryData {
-    id: string
-    title: string
-  }
-
-  let dialogOpen = $state(false)
-  let editDialogOpen = $state(false)
-  let deleteDialogOpen = $state(false)
-  let selectedItem = $state<ItemData | null>(null)
-
-  let formData = $state({
-    categoryIds: [] as string[],
-    name: "",
-    slug: "",
-    setName: "",
-    rarity: "",
-    price: "",
-    imageUrl: "",
-    description: "",
-    stockQty: "0",
-  })
-
-  let categorySearchTerm = $state("")
-
-  function resetForm() {
-    formData = {
-      categoryIds: [],
-      name: "",
-      slug: "",
-      setName: "",
-      rarity: "",
-      price: "",
-      imageUrl: "",
-      description: "",
-      stockQty: "0",
-    }
-    categorySearchTerm = ""
-  }
-
-  function toggleCategory(categoryId: string) {
-    if (formData.categoryIds.includes(categoryId)) {
-      formData.categoryIds = formData.categoryIds.filter((id) => id !== categoryId)
-    } else {
-      formData.categoryIds = [...formData.categoryIds, categoryId]
+  function handleDelete(itemId: string, itemName: string) {
+    if (confirm(`Are you sure you want to delete "${itemName}"?`)) {
+      deleteMutation.mutate(itemId)
     }
   }
 
-  const filteredCategories = $derived(
-    (categoriesQuery.data?.data ?? []).filter((c: CategoryData) =>
-      c.title.toLowerCase().includes(categorySearchTerm.toLowerCase()),
-    ),
-  )
-
-  const exactMatch = $derived(
-    (categoriesQuery.data?.data ?? []).find(
-      (c: CategoryData) => c.title.toLowerCase() === categorySearchTerm.toLowerCase(),
-    ),
-  )
-
-  function handleCreateCategory() {
-    if (!categorySearchTerm.trim()) {
-      toast.error("Please enter a category name")
-      return
+  function getStatusBadgeVariant(status: string) {
+    switch (status) {
+      case "active":
+        return "default"
+      case "draft":
+        return "secondary"
+      case "archived":
+        return "outline"
+      default:
+        return "secondary"
     }
-
-    createCategoryMutation.mutate(
-      { title: categorySearchTerm.trim() },
-      {
-        onSuccess: (newCategory) => {
-          toast.success(`Category "${newCategory.title}" created`)
-          formData.categoryIds = [...formData.categoryIds, newCategory.id]
-          categorySearchTerm = ""
-        },
-        onError: (error) => {
-          toast.error(error.message)
-        },
-      },
-    )
-  }
-
-  function handleCreate() {
-    if (formData.categoryIds.length === 0) {
-      toast.error("Please select at least one category")
-      return
-    }
-
-    createMutation.mutate(
-      {
-        categoryIds: formData.categoryIds,
-        name: formData.name,
-        slug: formData.slug || undefined,
-        setName: formData.setName || null,
-        rarity: formData.rarity || null,
-        price: formData.price,
-        imageUrl: formData.imageUrl || null,
-        description: formData.description || null,
-        stockQty: parseInt(formData.stockQty),
-      },
-      {
-        onSuccess: () => {
-          dialogOpen = false
-          resetForm()
-        },
-      },
-    )
-  }
-
-  function handleEdit() {
-    if (!selectedItem) return
-
-    if (formData.categoryIds.length === 0) {
-      toast.error("Please select at least one category")
-      return
-    }
-
-    updateMutation.mutate(
-      {
-        id: selectedItem.id,
-        data: {
-          categoryIds: formData.categoryIds,
-          name: formData.name,
-          slug: formData.slug || undefined,
-          setName: formData.setName || null,
-          rarity: formData.rarity || null,
-          price: formData.price,
-          imageUrl: formData.imageUrl || null,
-          description: formData.description || null,
-          stockQty: parseInt(formData.stockQty),
-        },
-      },
-      {
-        onSuccess: () => {
-          editDialogOpen = false
-          selectedItem = null
-          resetForm()
-        },
-      },
-    )
-  }
-
-  function handleDelete() {
-    if (!selectedItem) return
-
-    deleteMutation.mutate(selectedItem.id, {
-      onSuccess: () => {
-        deleteDialogOpen = false
-        selectedItem = null
-      },
-    })
-  }
-
-  function openEditDialog(item: ItemData) {
-    selectedItem = item
-    formData = {
-      categoryIds: item.categoryIds,
-      name: item.name,
-      slug: item.slug || "",
-      setName: item.setName || "",
-      rarity: item.rarity || "",
-      price: item.price,
-      imageUrl: item.imageUrl || "",
-      description: item.description || "",
-      stockQty: item.stockQty.toString(),
-    }
-    categorySearchTerm = ""
-    editDialogOpen = true
-  }
-
-  function openDeleteDialog(item: ItemData) {
-    selectedItem = item
-    deleteDialogOpen = true
   }
 </script>
 
-<div class="flex items-center justify-between">
-  <h2 class="text-2xl font-bold">Items</h2>
-  <Dialog bind:open={dialogOpen}>
-    <DialogTrigger>
-      <Button>Add Item</Button>
-    </DialogTrigger>
-    <DialogContent class="max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle>Create Item</DialogTitle>
-        <DialogDescription>Add a new product item</DialogDescription>
-      </DialogHeader>
-      <div class="grid gap-4 py-4">
-        <div class="grid gap-2">
-          <Label for="category">Categories</Label>
-          <div class="rounded-md border p-3">
-            <Input
-              placeholder="Search or create category..."
-              bind:value={categorySearchTerm}
-              class="mb-3"
-            />
-            <div class="max-h-48 space-y-2 overflow-y-auto">
-              {#if filteredCategories.length > 0}
-                {#each filteredCategories as category (category.id)}
-                  <div class="flex items-center space-x-2">
-                    <Checkbox
-                      id={`category-${category.id}`}
-                      checked={formData.categoryIds.includes(category.id)}
-                      onCheckedChange={() => toggleCategory(category.id)}
-                    />
-                    <Label for={`category-${category.id}`} class="flex-1 cursor-pointer">
-                      {category.title}
-                    </Label>
-                  </div>
-                {/each}
-              {/if}
-              {#if categorySearchTerm && !exactMatch}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="w-full"
-                  onclick={handleCreateCategory}
-                  disabled={createCategoryMutation.isPending}
-                >
-                  {createCategoryMutation.isPending
-                    ? "Creating..."
-                    : `Create "${categorySearchTerm}"`}
-                </Button>
-              {/if}
-              {#if filteredCategories.length === 0 && !categorySearchTerm}
-                <p class="text-sm text-muted-foreground">No categories available</p>
-              {/if}
-              {#if filteredCategories.length === 0 && categorySearchTerm && exactMatch}
-                <p class="text-sm text-muted-foreground">No matching categories</p>
-              {/if}
-            </div>
-            {#if formData.categoryIds.length > 0}
-              <div class="mt-3 border-t pt-3">
-                <p class="text-sm font-medium">
-                  Selected ({formData.categoryIds.length}):
-                </p>
-                <div class="mt-1 flex flex-wrap gap-1">
-                  {#each formData.categoryIds as categoryId (categoryId)}
-                    {@const category = categoriesQuery.data?.data?.find(
-                      (c: CategoryData) => c.id === categoryId,
-                    )}
-                    {#if category}
-                      <span
-                        class="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs"
-                      >
-                        {category.title}
-                        <button
-                          type="button"
-                          onclick={() => toggleCategory(categoryId)}
-                          class="hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    {/if}
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          </div>
-        </div>
-        <div class="grid gap-2">
-          <Label for="name">Name</Label>
-          <Input id="name" bind:value={formData.name} required />
-        </div>
-        <div class="grid gap-2">
-          <Label for="slug">Slug</Label>
-          <Input
-            id="slug"
-            bind:value={formData.slug}
-            placeholder="Optional - auto-generated from name if empty"
-          />
-        </div>
-        <div class="grid gap-2">
-          <Label for="setName">Set Name</Label>
-          <Input id="setName" bind:value={formData.setName} />
-        </div>
-        <div class="grid gap-2">
-          <Label for="rarity">Rarity</Label>
-          <Input id="rarity" bind:value={formData.rarity} />
-        </div>
-        <div class="grid gap-2">
-          <Label for="price">Price</Label>
-          <Input id="price" type="number" step="0.01" bind:value={formData.price} required />
-        </div>
-        <div class="grid gap-2">
-          <Label for="stockQty">Stock Quantity</Label>
-          <Input id="stockQty" type="number" bind:value={formData.stockQty} required />
-        </div>
-        <div class="grid gap-2">
-          <Label for="imageUrl">Image URL</Label>
-          <Input id="imageUrl" bind:value={formData.imageUrl} />
-        </div>
-        <div class="grid gap-2">
-          <Label for="description">Description</Label>
-          <Textarea id="description" bind:value={formData.description} />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onclick={() => (dialogOpen = false)}>Cancel</Button>
-        <Button onclick={handleCreate} disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Creating..." : "Create"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</div>
+<svelte:head>
+  <title>Items - Admin</title>
+</svelte:head>
 
-<div class="mt-4 rounded-md border">
-  {#if itemsQuery.isLoading || categoriesQuery.isLoading}
-    <div class="flex items-center justify-center p-8">
+<div class="container mx-auto py-8">
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold">Items</h1>
+      <p class="text-muted-foreground">Manage your trading card inventory</p>
+    </div>
+    <Button onclick={() => goto("/admin/items/new")}>
+      <PlusIcon class="mr-2 h-4 w-4" />
+      Add Item
+    </Button>
+  </div>
+
+  {#if itemsQuery.isLoading}
+    <div class="flex justify-center py-8">
       <p class="text-muted-foreground">Loading items...</p>
     </div>
-  {:else if itemsQuery.isError}
-    <div class="flex items-center justify-center p-8">
+  {:else if itemsQuery.error}
+    <div class="rounded-lg border border-destructive bg-destructive/10 p-4">
       <p class="text-destructive">Error loading items: {itemsQuery.error.message}</p>
     </div>
-  {:else if itemsQuery.data?.data}
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Slug</TableHead>
-          <TableHead>Category</TableHead>
-          <TableHead>Set</TableHead>
-          <TableHead>Rarity</TableHead>
-          <TableHead>Price</TableHead>
-          <TableHead>Stock</TableHead>
-          <TableHead class="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {#each itemsQuery.data.data as item (item.id)}
+  {:else if itemsQuery.data}
+    <div class="rounded-lg border">
+      <Table>
+        <TableHeader>
           <TableRow>
-            <TableCell class="font-medium">{item.name}</TableCell>
-            <TableCell class="font-mono text-sm text-muted-foreground">{item.slug || "-"}</TableCell
-            >
-            <TableCell>
-              {#if item.categories && item.categories.length > 0}
-                {item.categories.map((c) => c.title).join(", ")}
-              {:else}
-                -
-              {/if}
-            </TableCell>
-            <TableCell>{item.setName || "-"}</TableCell>
-            <TableCell>{item.rarity || "-"}</TableCell>
-            <TableCell>${item.price}</TableCell>
-            <TableCell>{item.stockQty}</TableCell>
-            <TableCell class="text-right">
-              <Button variant="ghost" size="sm" onclick={() => openEditDialog(item)}>Edit</Button>
-              <Button variant="ghost" size="sm" onclick={() => openDeleteDialog(item)}>
-                Delete
-              </Button>
-            </TableCell>
+            <TableHead>Name</TableHead>
+            <TableHead>Set</TableHead>
+            <TableHead>Rarity</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead>Stock</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Visibility</TableHead>
+            <TableHead class="text-right">Actions</TableHead>
           </TableRow>
-        {/each}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {#each itemsQuery.data.data as item}
+            <TableRow>
+              <TableCell class="font-medium">
+                <div class="flex items-center gap-2">
+                  {#if item.imageUrl}
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      class="h-10 w-10 rounded object-cover"
+                    />
+                  {/if}
+                  {item.name}
+                </div>
+              </TableCell>
+              <TableCell>{item.setName ?? "-"}</TableCell>
+              <TableCell>{item.rarity ?? "-"}</TableCell>
+              <TableCell>${item.price}</TableCell>
+              <TableCell>{item.stockQty}</TableCell>
+              <TableCell>
+                <Badge variant={getStatusBadgeVariant(item.status)}>
+                  {item.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {#if item.visibility}
+                  <Badge variant="default">Visible</Badge>
+                {:else}
+                  <Badge variant="outline">Hidden</Badge>
+                {/if}
+              </TableCell>
+              <TableCell class="text-right">
+                <div class="flex justify-end gap-2">
+                  <Button variant="ghost" size="icon" onclick={() => handleEdit(item.id)}>
+                    <PencilIcon class="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onclick={() => handleDelete(item.id, item.name)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2Icon class="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          {:else}
+            <TableRow>
+              <TableCell colspan={8} class="text-center text-muted-foreground">
+                No items found. Create your first item to get started.
+              </TableCell>
+            </TableRow>
+          {/each}
+        </TableBody>
+      </Table>
+    </div>
+
+    {#if itemsQuery.data.meta.totalPages > 1}
+      <div class="mt-4 flex items-center justify-between">
+        <p class="text-sm text-muted-foreground">
+          Page {itemsQuery.data.meta.page} of {itemsQuery.data.meta.totalPages}
+          ({itemsQuery.data.meta.total} total items)
+        </p>
+        <Pagination count={itemsQuery.data.meta.totalPages} perPage={1}>
+          <PaginationContent>
+            <PaginationPrevButton
+              disabled={currentPage === 1}
+              onclick={() => {
+                if (currentPage > 1) currentPage--
+              }}
+            />
+            <PaginationNextButton
+              disabled={!itemsQuery.data.meta.hasMore}
+              onclick={() => {
+                if (itemsQuery.data.meta.hasMore) currentPage++
+              }}
+            />
+          </PaginationContent>
+        </Pagination>
+      </div>
+    {/if}
   {/if}
 </div>
-
-{#if itemsQuery.data?.meta && itemsQuery.data.meta.totalPages > 1}
-  <div class="mt-4 space-y-2">
-    <Pagination
-      count={itemsQuery.data.meta.total}
-      perPage={ITEMS_PER_PAGE}
-      bind:page={currentPage}
-      siblingCount={1}
-    >
-      <PaginationContent>
-        <PaginationPrevButton />
-        <div class="mx-4 text-sm text-muted-foreground">
-          Page {currentPage} of {itemsQuery.data.meta.totalPages} • Showing {(currentPage - 1) *
-            ITEMS_PER_PAGE +
-            1} to {Math.min(currentPage * ITEMS_PER_PAGE, itemsQuery.data.meta.total)} of {itemsQuery
-            .data.meta.total}
-        </div>
-        <PaginationNextButton />
-      </PaginationContent>
-    </Pagination>
-  </div>
-{/if}
-
-<Dialog bind:open={editDialogOpen}>
-  <DialogContent class="max-h-[90vh] overflow-y-auto">
-    <DialogHeader>
-      <DialogTitle>Edit Item</DialogTitle>
-      <DialogDescription>Update item details</DialogDescription>
-    </DialogHeader>
-    <div class="grid gap-4 py-4">
-      <div class="grid gap-2">
-        <Label for="edit-category">Categories</Label>
-        <div class="rounded-md border p-3">
-          <Input
-            placeholder="Search or create category..."
-            bind:value={categorySearchTerm}
-            class="mb-3"
-          />
-          <div class="max-h-48 space-y-2 overflow-y-auto">
-            {#if filteredCategories.length > 0}
-              {#each filteredCategories as category (category.id)}
-                <div class="flex items-center space-x-2">
-                  <Checkbox
-                    id={`edit-category-${category.id}`}
-                    checked={formData.categoryIds.includes(category.id)}
-                    onCheckedChange={() => toggleCategory(category.id)}
-                  />
-                  <Label for={`edit-category-${category.id}`} class="flex-1 cursor-pointer">
-                    {category.title}
-                  </Label>
-                </div>
-              {/each}
-            {/if}
-            {#if categorySearchTerm && !exactMatch}
-              <Button
-                variant="outline"
-                size="sm"
-                class="w-full"
-                onclick={handleCreateCategory}
-                disabled={createCategoryMutation.isPending}
-              >
-                {createCategoryMutation.isPending
-                  ? "Creating..."
-                  : `Create "${categorySearchTerm}"`}
-              </Button>
-            {/if}
-            {#if filteredCategories.length === 0 && !categorySearchTerm}
-              <p class="text-sm text-muted-foreground">No categories available</p>
-            {/if}
-            {#if filteredCategories.length === 0 && categorySearchTerm && exactMatch}
-              <p class="text-sm text-muted-foreground">No matching categories</p>
-            {/if}
-          </div>
-          {#if formData.categoryIds.length > 0}
-            <div class="mt-3 border-t pt-3">
-              <p class="text-sm font-medium">
-                Selected ({formData.categoryIds.length}):
-              </p>
-              <div class="mt-1 flex flex-wrap gap-1">
-                {#each formData.categoryIds as categoryId (categoryId)}
-                  {@const category = categoriesQuery.data?.data?.find(
-                    (c: CategoryData) => c.id === categoryId,
-                  )}
-                  {#if category}
-                    <span
-                      class="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs"
-                    >
-                      {category.title}
-                      <button
-                        type="button"
-                        onclick={() => toggleCategory(categoryId)}
-                        class="hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  {/if}
-                {/each}
-              </div>
-            </div>
-          {/if}
-        </div>
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-name">Name</Label>
-        <Input id="edit-name" bind:value={formData.name} required />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-slug">Slug</Label>
-        <Input
-          id="edit-slug"
-          bind:value={formData.slug}
-          placeholder="Optional - auto-generated from name if empty"
-        />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-setName">Set Name</Label>
-        <Input id="edit-setName" bind:value={formData.setName} />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-rarity">Rarity</Label>
-        <Input id="edit-rarity" bind:value={formData.rarity} />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-price">Price</Label>
-        <Input id="edit-price" type="number" step="0.01" bind:value={formData.price} required />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-stockQty">Stock Quantity</Label>
-        <Input id="edit-stockQty" type="number" bind:value={formData.stockQty} required />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-imageUrl">Image URL</Label>
-        <Input id="edit-imageUrl" bind:value={formData.imageUrl} />
-      </div>
-      <div class="grid gap-2">
-        <Label for="edit-description">Description</Label>
-        <Textarea id="edit-description" bind:value={formData.description} />
-      </div>
-    </div>
-    <DialogFooter>
-      <Button variant="outline" onclick={() => (editDialogOpen = false)}>Cancel</Button>
-      <Button onclick={handleEdit} disabled={updateMutation.isPending}>
-        {updateMutation.isPending ? "Updating..." : "Update"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
-<Dialog bind:open={deleteDialogOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Delete Item</DialogTitle>
-      <DialogDescription>
-        Are you sure you want to delete "{selectedItem?.name}"? This action cannot be undone.
-      </DialogDescription>
-    </DialogHeader>
-    <DialogFooter>
-      <Button variant="outline" onclick={() => (deleteDialogOpen = false)}>Cancel</Button>
-      <Button variant="destructive" onclick={handleDelete} disabled={deleteMutation.isPending}>
-        {deleteMutation.isPending ? "Deleting..." : "Delete"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
